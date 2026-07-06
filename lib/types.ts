@@ -1,0 +1,63 @@
+export type KpssType = "Lisans" | "Onlisans" | "Ortaogretim";
+export type UserRole = "Standard" | "Premium" | "Admin";
+export type ContentStatus = "PendingReview" | "Active" | "Rejected" | "Archived";
+export type Difficulty = "Easy" | "Medium" | "Hard";
+export type QuestionType = "MultipleChoice" | "TrueFalse";
+
+export interface AuthUser {
+  email: string;
+  role: UserRole;
+}
+
+export interface AdminQuestion {
+  id: string;
+  body: string;
+  categoryId: string;
+  categoryName: string;
+  difficulty: Difficulty;
+  questionType: QuestionType;
+  status: ContentStatus;
+  options: string[];
+  correctAnswer: string;
+  explanation?: string;
+  year?: number;
+  imageUrl?: string;
+  createdAt: string;
+}
+
+export interface AdminCategory {
+  id: string;
+  name: string;
+  parentCategoryId?: string;
+  parentCategoryName?: string;
+  activeQuestionCount: number;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  role: UserRole;
+  kpssType?: KpssType;
+  createdAt: string;
+}
+
+export interface AdminStats {
+  totalUsers: number;
+  activeQuestions: number;
+  pendingReview: number;
+  dailyActiveUsers: number;
+  dailyAnswers: { date: string; count: number }[];
+  categoryDistribution: { categoryName: string; count: number }[];
+}
+
+export interface ExamDateDto {
+  kpssType: string;
+  date: string;
+}
+
+export interface PagedResult<T> {
+  items: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
