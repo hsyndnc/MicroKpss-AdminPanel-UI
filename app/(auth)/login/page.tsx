@@ -4,12 +4,17 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { loginSchema, type LoginInput } from "@/lib/validations/authSchema";
 import { login } from "@/lib/api/auth";
+import type { UserRole } from "@/lib/types";
 import { useAuthStore } from "@/lib/store/authStore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+
+function setAuthCookie(token: string) {
+  document.cookie = `token=${token}; path=/; max-age=86400`;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -24,8 +29,8 @@ export default function LoginPage() {
     try {
       const data = await login(values.email, values.password);
       localStorage.setItem("token", data.accessToken);
-      document.cookie = `token=${data.accessToken}; path=/; max-age=86400`;
-      setAuth(data.accessToken, { email: data.email, role: data.role as any });
+      setAuthCookie(data.accessToken);
+      setAuth(data.accessToken, { email: data.email, role: data.role as UserRole });
       router.push("/dashboard");
     } catch {
       toast.error("E-posta veya şifre hatalı.");
