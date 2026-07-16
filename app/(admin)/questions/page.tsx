@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { BulkActionBar } from "@/components/shared/BulkActionBar";
 import { ImportSheet } from "./_components/ImportSheet";
+import { QuestionStats } from "./_components/QuestionStats";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -95,6 +96,8 @@ function QuestionsContent() {
         <Button onClick={() => setImportOpen(true)}>İçe Aktar</Button>
       </div>
 
+      <QuestionStats onStatusFilter={(s) => setQueryParam("status", s)} />
+
       <div className="flex items-center gap-3">
         <Select value={status} onValueChange={(v) => v && setQueryParam("status", v)}>
           <SelectTrigger className="w-40">
@@ -138,12 +141,12 @@ function QuestionsContent() {
             </TableHeader>
             <TableBody>
               {(data?.items ?? []).map((q) => (
-                <TableRow key={q.id}>
-                  <TableCell>
+                <TableRow key={q.id} className="cursor-pointer hover:bg-gray-50" onClick={() => router.push(`/questions/${q.id}`)}>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <Checkbox checked={selected.has(q.id)} onCheckedChange={() => toggleSelect(q.id)} />
                   </TableCell>
-                  <TableCell className="max-w-xs">
-                    <span className="line-clamp-1">{q.body.slice(0, 80)}{q.body.length > 80 ? "..." : ""}</span>
+                  <TableCell className="max-w-md">
+                    <span className="line-clamp-2">{q.body}</span>
                   </TableCell>
                   <TableCell className="text-sm text-gray-600">{q.categoryName}</TableCell>
                   <TableCell className="text-sm">{q.difficulty}</TableCell>
@@ -151,7 +154,7 @@ function QuestionsContent() {
                   <TableCell className="text-sm text-gray-600">
                     {format(new Date(q.createdAt), "d MMM yyyy", { locale: tr })}
                   </TableCell>
-                  <TableCell className="text-right space-x-1">
+                  <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
                     {q.status === "PendingReview" && (
                       <>
                         <Button size="sm" variant="outline" className="text-green-700 border-green-300" onClick={() => handleApprove(q.id)}>
