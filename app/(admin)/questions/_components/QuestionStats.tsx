@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { useDashboardStats } from "@/lib/hooks/useDashboardStats";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,6 +10,7 @@ interface QuestionStatsProps {
 
 export function QuestionStats({ onStatusFilter }: QuestionStatsProps) {
   const { data, isLoading, isError } = useDashboardStats();
+  const [expanded, setExpanded] = useState(false);
 
   if (isError) return null;
 
@@ -23,8 +25,8 @@ export function QuestionStats({ onStatusFilter }: QuestionStatsProps) {
   }
 
   const distribution = [...(data?.categoryDistribution ?? [])].sort((a, b) => b.count - a.count);
-  const topCategories = distribution.slice(0, 6);
-  const remainingCount = distribution.length - topCategories.length;
+  const topCategories = expanded ? distribution : distribution.slice(0, 6);
+  const remainingCount = distribution.length - 6;
   const maxCount = topCategories[0]?.count ?? 1;
 
   return (
@@ -73,7 +75,13 @@ export function QuestionStats({ onStatusFilter }: QuestionStatsProps) {
             ))}
           </div>
           {remainingCount > 0 && (
-            <p className="mt-3 text-xs text-gray-400">+{remainingCount} konu daha</p>
+            <button
+              type="button"
+              className="mt-3 text-xs text-blue-600 hover:underline"
+              onClick={() => setExpanded((v) => !v)}
+            >
+              {expanded ? "Daha az göster" : `+${remainingCount} konu daha`}
+            </button>
           )}
           {topCategories.length === 0 && <p className="text-sm text-gray-400">Veri yok</p>}
         </CardContent>
