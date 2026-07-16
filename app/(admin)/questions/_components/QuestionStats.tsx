@@ -23,6 +23,9 @@ export function QuestionStats({ onStatusFilter }: QuestionStatsProps) {
   }
 
   const distribution = [...(data?.categoryDistribution ?? [])].sort((a, b) => b.count - a.count);
+  const topCategories = distribution.slice(0, 6);
+  const remainingCount = distribution.length - topCategories.length;
+  const maxCount = topCategories[0]?.count ?? 1;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -34,7 +37,7 @@ export function QuestionStats({ onStatusFilter }: QuestionStatsProps) {
           <CardTitle className="text-sm text-green-700">Onaylı</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-3xl font-bold text-green-600">{data?.activeQuestions ?? 0}</p>
+          <p className="text-3xl font-bold text-green-600">{(data?.activeQuestions ?? 0).toLocaleString("tr-TR")}</p>
         </CardContent>
       </Card>
       <Card
@@ -45,7 +48,7 @@ export function QuestionStats({ onStatusFilter }: QuestionStatsProps) {
           <CardTitle className="text-sm text-yellow-700">Bekleyen</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-3xl font-bold text-yellow-600">{data?.pendingReview ?? 0}</p>
+          <p className="text-3xl font-bold text-yellow-600">{(data?.pendingReview ?? 0).toLocaleString("tr-TR")}</p>
         </CardContent>
       </Card>
       <Card className="sm:col-span-2">
@@ -53,15 +56,26 @@ export function QuestionStats({ onStatusFilter }: QuestionStatsProps) {
           <CardTitle className="text-sm text-gray-600">Konu Dağılımı</CardTitle>
         </CardHeader>
         <CardContent>
-          <ul className="max-h-20 overflow-y-auto space-y-1 pr-2">
-            {distribution.map((c) => (
-              <li key={c.categoryName} className="flex items-center justify-between text-sm">
-                <span className="text-gray-600 truncate">{c.categoryName}</span>
-                <span className="font-semibold tabular-nums">{c.count}</span>
-              </li>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+            {topCategories.map((c) => (
+              <div key={c.categoryName} className="space-y-1">
+                <div className="flex items-baseline justify-between gap-2 text-sm">
+                  <span className="truncate text-gray-700">{c.categoryName}</span>
+                  <span className="font-semibold tabular-nums">{c.count.toLocaleString("tr-TR")}</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-gray-100">
+                  <div
+                    className="h-full rounded-full bg-blue-500"
+                    style={{ width: `${Math.max((c.count / maxCount) * 100, 4)}%` }}
+                  />
+                </div>
+              </div>
             ))}
-            {distribution.length === 0 && <li className="text-sm text-gray-400">Veri yok</li>}
-          </ul>
+          </div>
+          {remainingCount > 0 && (
+            <p className="mt-3 text-xs text-gray-400">+{remainingCount} konu daha</p>
+          )}
+          {topCategories.length === 0 && <p className="text-sm text-gray-400">Veri yok</p>}
         </CardContent>
       </Card>
     </div>
