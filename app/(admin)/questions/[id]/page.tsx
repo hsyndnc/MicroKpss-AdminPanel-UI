@@ -10,6 +10,7 @@ import { useCategories } from "@/lib/hooks/useCategories";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { VerificationBadge } from "@/components/shared/VerificationBadge";
 import { RejectDialog } from "@/components/shared/RejectDialog";
+import { AiFixDialog } from "@/components/shared/AiFixDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,13 +18,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import type { ContentStatus } from "@/lib/types";
+import type { ContentStatus, AiFixSuggestion } from "@/lib/types";
 
 export default function QuestionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
   const [rejectOpen, setRejectOpen] = useState(false);
+  const [aiFixOpen, setAiFixOpen] = useState(false);
 
   const { data: question, isLoading } = useQuery({
     queryKey: ["question", id],
@@ -97,6 +99,11 @@ export default function QuestionDetailPage() {
           <h1 className="text-xl font-bold">Soru Detayı</h1>
         </div>
         <div className="flex items-center gap-2">
+          {question.verificationStatus && (
+            <Button size="sm" variant="outline" onClick={() => setAiFixOpen(true)}>
+              AI ile Düzelt
+            </Button>
+          )}
           <StatusBadge status={question.status as ContentStatus} />
           <VerificationBadge status={question.verificationStatus} />
         </div>
@@ -241,6 +248,21 @@ export default function QuestionDetailPage() {
         onConfirm={(reason) => rejectMutation.mutate(reason)}
         onCancel={() => setRejectOpen(false)}
         loading={rejectMutation.isPending}
+      />
+
+      <AiFixDialog
+        open={aiFixOpen}
+        question={question}
+        onClose={() => setAiFixOpen(false)}
+        onApply={(s: AiFixSuggestion) => {
+          form.reset({
+            ...form.getValues(),
+            body: s.body,
+            options: s.options,
+            correctAnswer: s.correctAnswer,
+          });
+          toast.info("Öneri forma uygulandı — kontrol edip Kaydet'e basın.");
+        }}
       />
     </div>
   );
