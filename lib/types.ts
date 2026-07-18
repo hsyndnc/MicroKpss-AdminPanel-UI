@@ -15,6 +15,7 @@ export interface AdminQuestion {
   categoryId: string;
   categoryName: string;
   difficulty: Difficulty;
+  type: QuestionType;
   questionType: QuestionType;
   status: ContentStatus;
   options: string[];
@@ -41,6 +42,17 @@ export interface AdminUser {
   createdAt: string;
 }
 
+export interface AdminUserDetail {
+  id: string;
+  email: string;
+  role: UserRole;
+  kpssType: KpssType | null;
+  createdAt: string;
+  lastLoginAt: string | null;
+  solvedCount: number;
+  correctCount: number;
+}
+
 export interface AdminStats {
   totalUsers: number;
   activeQuestions: number;
@@ -60,4 +72,12 @@ export interface PagedResult<T> {
   totalCount: number;
   page: number;
   pageSize: number;
+}
+
+export type LegalDocumentType = "PrivacyPolicy" | "TermsOfService" | "KvkkNotice";
+
+export interface LegalDocument {
+  type: LegalDocumentType;
+  content: string;
+  updatedAt: string;
 }
