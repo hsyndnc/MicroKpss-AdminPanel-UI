@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import type { AdminQuestion, PagedResult } from "@/lib/types";
+import type { AdminQuestion, AiFixResult, PagedResult } from "@/lib/types";
 
 export interface GetQuestionsParams {
   status?: string;
@@ -40,4 +40,12 @@ export async function rejectQuestion(id: string, reason: string): Promise<void> 
 
 export async function deleteQuestion(id: string): Promise<void> {
   await apiClient.delete(`/admin/questions/${id}`);
+}
+
+export async function requestAiFix(id: string, adminNote?: string): Promise<AiFixResult> {
+  const { data } = await apiClient.post<AiFixResult>(
+    `/admin/questions/${id}/ai-fix`,
+    { adminNote: adminNote?.trim() || null },
+  );
+  return data;
 }

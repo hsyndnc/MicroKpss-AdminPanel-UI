@@ -83,3 +83,16 @@ export interface LegalDocument {
   content: string;
   updatedAt: string;
 }
+
+export interface AiFixSuggestion {
+  body: string;
+  options: string[];
+  correctAnswer: string;
+  explanation?: string | null;
+}
+
+export interface AiFixResult {
+  suggestion: AiFixSuggestion;
+  changeSummary: string;
+  sourceFound: boolean;
+}
