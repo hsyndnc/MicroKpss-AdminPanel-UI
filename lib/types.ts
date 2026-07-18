@@ -24,6 +24,8 @@ export interface AdminQuestion {
   year?: number;
   imageUrl?: string;
   createdAt: string;
+  verificationStatus?: string | null; // "gecti" | "supheli" | "kontrol_edilemedi" | null
+  verificationNote?: string | null;
 }
 
 export interface AdminCategory {

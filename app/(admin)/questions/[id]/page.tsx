@@ -8,7 +8,8 @@ import { getAdminQuestionById, updateQuestion, approveQuestion, rejectQuestion }
 import { questionSchema, type QuestionInput } from "@/lib/validations/questionSchema";
 import { useCategories } from "@/lib/hooks/useCategories";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { VerificationBadge } from "@/components/shared/VerificationBadge";
+import { RejectDialog } from "@/components/shared/RejectDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +37,7 @@ export default function QuestionDetailPage() {
     defaultValues: {
       body: "", categoryId: "", questionType: "MultipleChoice",
       options: ["", ""], correctAnswer: "", difficulty: "Medium",
+      explanation: "", imageUrl: "", year: undefined,
     },
   });
 
@@ -49,13 +51,13 @@ export default function QuestionDetailPage() {
       form.reset({
         body: question.body,
         categoryId: question.categoryId,
-        questionType: question.questionType,
+        questionType: question.type ?? question.questionType,
         options: question.options,
         correctAnswer: question.correctAnswer,
         difficulty: question.difficulty,
         explanation: question.explanation ?? "",
         imageUrl: question.imageUrl ?? "",
-        year: question.year,
+        year: question.year ?? undefined,
       });
     }
   }, [question, form]);
@@ -77,7 +79,7 @@ export default function QuestionDetailPage() {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: () => rejectQuestion(id),
+    mutationFn: (reason: string) => rejectQuestion(id, reason),
     onSuccess: () => { invalidateAll(); toast.error("Reddedildi"); router.push("/questions"); },
   });
 
@@ -87,28 +89,28 @@ export default function QuestionDetailPage() {
   const watchedOptions = form.watch("options");
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="-m-6 flex min-h-[calc(100%+3rem)] flex-col">
+      <div className="space-y-6 p-6">
+      <div className="flex max-w-2xl items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => router.push("/questions")}>← Geri</Button>
           <h1 className="text-xl font-bold">Soru Detayı</h1>
         </div>
-        <StatusBadge status={question.status as ContentStatus} />
+        <div className="flex items-center gap-2">
+          <StatusBadge status={question.status as ContentStatus} />
+          <VerificationBadge status={question.verificationStatus} />
+        </div>
       </div>
 
-      {question.status === "PendingReview" && (
-        <div className="flex gap-3">
-          <Button className="bg-green-600 hover:bg-green-700" onClick={() => approveMutation.mutate()} disabled={approveMutation.isPending}>
-            Onayla
-          </Button>
-          <Button variant="outline" className="text-red-700 border-red-300" onClick={() => setRejectOpen(true)}>
-            Reddet
-          </Button>
+      {question.verificationStatus === "supheli" && question.verificationNote && (
+        <div className="max-w-2xl rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <p className="font-medium">AI doğrulama notu</p>
+          <p className="mt-1">{question.verificationNote}</p>
         </div>
       )}
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit((d) => updateMutation.mutate(d))} className="space-y-4">
+        <form id="question-form" onSubmit={form.handleSubmit((d) => updateMutation.mutate(d))} className="max-w-2xl space-y-4">
           <Card>
             <CardHeader><CardTitle className="text-base">Soru</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -212,20 +214,33 @@ export default function QuestionDetailPage() {
             </CardContent>
           </Card>
 
-          <Button type="submit" disabled={updateMutation.isPending}>
-            {updateMutation.isPending ? "Kaydediliyor..." : "Kaydet"}
-          </Button>
         </form>
       </Form>
+      </div>
 
-      <ConfirmDialog
+      <div className="sticky bottom-0 z-10 mt-auto border-t bg-white px-6 py-4">
+        <div className="flex max-w-2xl items-center justify-between">
+          <Button type="submit" form="question-form" disabled={updateMutation.isPending}>
+            {updateMutation.isPending ? "Kaydediliyor..." : "Kaydet"}
+          </Button>
+          {question.status === "PendingReview" && (
+            <div className="flex gap-2">
+              <Button type="button" className="bg-green-600 hover:bg-green-700" onClick={() => approveMutation.mutate()} disabled={approveMutation.isPending}>
+                Onayla
+              </Button>
+              <Button type="button" variant="outline" className="text-red-700 border-red-300" onClick={() => setRejectOpen(true)}>
+                Reddet
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <RejectDialog
         open={rejectOpen}
-        title="Soruyu Reddet"
-        description="Bu soruyu reddetmek istediğine emin misin?"
-        onConfirm={() => rejectMutation.mutate()}
+        onConfirm={(reason) => rejectMutation.mutate(reason)}
         onCancel={() => setRejectOpen(false)}
-        confirmLabel="Reddet"
-        confirmVariant="destructive"
+        loading={rejectMutation.isPending}
       />
     </div>
   );

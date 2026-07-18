@@ -23,7 +23,10 @@ export function useApproveQuestion() {
 
 export function useRejectQuestion() {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: rejectQuestion, onSuccess: () => invalidate(qc) });
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => rejectQuestion(id, reason),
+    onSuccess: () => invalidate(qc),
+  });
 }
 
 export function useDeleteQuestion() {

@@ -3,7 +3,8 @@ import { useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuestions, useApproveQuestion, useRejectQuestion } from "@/lib/hooks/useQuestions";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { VerificationBadge } from "@/components/shared/VerificationBadge";
+import { RejectDialog } from "@/components/shared/RejectDialog";
 import { BulkActionBar } from "@/components/shared/BulkActionBar";
 import { ImportSheet } from "./_components/ImportSheet";
 import { QuestionStats } from "./_components/QuestionStats";
@@ -83,8 +84,8 @@ function QuestionsContent() {
     toast.success("Soru onaylandı.");
   }
 
-  async function handleReject(id: string) {
-    await rejectMutation.mutateAsync(id);
+  async function handleReject(id: string, reason: string) {
+    await rejectMutation.mutateAsync({ id, reason });
     setRejectTarget(null);
     toast.error("Soru reddedildi.");
   }
@@ -135,6 +136,7 @@ function QuestionsContent() {
                 <TableHead>Kategori</TableHead>
                 <TableHead>Zorluk</TableHead>
                 <TableHead>Durum</TableHead>
+                <TableHead>AI Doğrulama</TableHead>
                 <TableHead>Tarih</TableHead>
                 <TableHead className="text-right">Aksiyonlar</TableHead>
               </TableRow>
@@ -151,6 +153,7 @@ function QuestionsContent() {
                   <TableCell className="text-sm text-gray-600">{q.categoryName}</TableCell>
                   <TableCell className="text-sm">{q.difficulty}</TableCell>
                   <TableCell><StatusBadge status={q.status as ContentStatus} /></TableCell>
+                  <TableCell><VerificationBadge status={q.verificationStatus} /></TableCell>
                   <TableCell className="text-sm text-gray-600">
                     {format(new Date(q.createdAt), "d MMM yyyy", { locale: tr })}
                   </TableCell>
@@ -173,7 +176,7 @@ function QuestionsContent() {
               ))}
               {data?.items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-gray-400">Soru bulunamadı</TableCell>
+                  <TableCell colSpan={8} className="text-center py-8 text-gray-400">Soru bulunamadı</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -186,14 +189,11 @@ function QuestionsContent() {
         {data && data.items.length === 20 && <Button variant="outline" size="sm" onClick={() => setQueryParam("page", String(page + 1))}>Sonraki →</Button>}
       </div>
 
-      <ConfirmDialog
+      <RejectDialog
         open={!!rejectTarget}
-        title="Soruyu Reddet"
-        description="Bu soruyu reddetmek istediğine emin misin?"
-        onConfirm={() => rejectTarget && handleReject(rejectTarget)}
+        onConfirm={(reason) => rejectTarget && handleReject(rejectTarget, reason)}
         onCancel={() => setRejectTarget(null)}
-        confirmLabel="Reddet"
-        confirmVariant="destructive"
+        loading={rejectMutation.isPending}
       />
 
       <ImportSheet open={importOpen} onClose={() => setImportOpen(false)} />

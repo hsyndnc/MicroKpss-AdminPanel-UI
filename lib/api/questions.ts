@@ -23,8 +23,10 @@ export async function createQuestion(body: Partial<AdminQuestion>): Promise<Admi
   return data;
 }
 
-export async function updateQuestion(id: string, body: Partial<AdminQuestion>): Promise<AdminQuestion> {
-  const { data } = await apiClient.put<AdminQuestion>(`/admin/questions/${id}`, body);
+export async function updateQuestion(id: string, body: Partial<AdminQuestion> & { questionType?: string }): Promise<AdminQuestion> {
+  const { questionType, ...rest } = body;
+  const payload = { id, ...rest, type: questionType };
+  const { data } = await apiClient.put<AdminQuestion>(`/admin/questions/${id}`, payload);
   return data;
 }
 
@@ -32,8 +34,8 @@ export async function approveQuestion(id: string): Promise<void> {
   await apiClient.post(`/admin/questions/${id}/approve`);
 }
 
-export async function rejectQuestion(id: string): Promise<void> {
-  await apiClient.post(`/admin/questions/${id}/reject`);
+export async function rejectQuestion(id: string, reason: string): Promise<void> {
+  await apiClient.post(`/admin/questions/${id}/reject`, { reason });
 }
 
 export async function deleteQuestion(id: string): Promise<void> {
