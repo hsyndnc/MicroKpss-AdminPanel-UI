@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { UserDetailSheet } from "./_components/UserDetailSheet";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
+import type { AdminUser } from "@/lib/types";
 
 const roleLabel: Record<string, string> = { Standard: "Standart", Premium: "Premium", Admin: "Admin" };
 const roleColor: Record<string, string> = {
@@ -42,6 +44,7 @@ function UsersContent() {
   const kpssType = searchParams.get("kpssType") ?? "all";
 
   const [searchInput, setSearchInput] = useState(search);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
 
   const { data, isLoading } = useUsers({
     page,
@@ -106,7 +109,7 @@ function UsersContent() {
             </TableHeader>
             <TableBody>
               {(data?.items ?? []).map((u) => (
-                <TableRow key={u.id}>
+                <TableRow key={u.id} className="cursor-pointer hover:bg-gray-50" onClick={() => setSelectedUser(u)}>
                   <TableCell>{u.email}</TableCell>
                   <TableCell><Badge className={roleColor[u.role]}>{roleLabel[u.role]}</Badge></TableCell>
                   <TableCell className="text-gray-600">{u.kpssType ? kpssLabel[u.kpssType] ?? u.kpssType : "—"}</TableCell>
@@ -129,6 +132,8 @@ function UsersContent() {
         {page > 1 && <Button variant="outline" size="sm" onClick={() => setQueryParam("page", String(page - 1))}>← Önceki</Button>}
         {data && data.items.length === 20 && <Button variant="outline" size="sm" onClick={() => setQueryParam("page", String(page + 1))}>Sonraki →</Button>}
       </div>
+
+      <UserDetailSheet user={selectedUser} onClose={() => setSelectedUser(null)} />
     </div>
   );
 }
