@@ -77,6 +77,10 @@ export default function QuestionDetailPage() {
       form.setError("categoryId", { message: "Ders seçiniz" });
       return;
     }
+    if (categories.some((c) => c.parentCategoryId === cat.id)) {
+      form.setError("categoryId", { message: "Konu seçiniz" });
+      return;
+    }
     updateMutation.mutate(d);
   };
 

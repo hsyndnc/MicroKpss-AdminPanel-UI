@@ -7,9 +7,18 @@
 
 Soru detay sayfasındaki kategori seçici (`app/(admin)/questions/[id]/page.tsx:131-142`) bütün kategorileri tek düz listede gösteriyor; dersler ile konular karışık duruyor. Veri modelinde iki seviyeli hiyerarşi zaten var (`AdminCategory.parentCategoryId` / `parentCategoryName`). Seçici iki adımlı olacak: önce ders, sonra o dersin konuları.
 
-## Revizyon (2026-07-20): gerçek hiyerarşi Alan → Ders
+## Revizyon 2 (2026-07-20): hiyerarşi 3 seviyeli — Alan → Ders → Konu
 
-Tarayıcı testinde ortaya çıktı; backend seed verisi (`KpssSoru-backend .../DataSeeder.cs:81-92`) doğruladı: kök kategoriler **Genel Yetenek / Genel Kültür** (alan), çocukları **dersler** (Türkçe, Matematik, Tarih...) ve sorular doğrudan derslere bağlı. "Konu" diye üçüncü seviye veride yok. Cascade mantığı aynen geçerli; yalnızca etiketler düzeltildi: ilk kutu "Alan", ikinci kutu "Ders", hata mesajı "Ders seçiniz". Aşağıdaki metinde geçen ders→konu ikilisi bugünkü veride alan→ders'e karşılık gelir. İleride derslerin altına gerçek konular (3. seviye) eklenirse bileşen yeniden ele alınmalı.
+DB sorgusu (kpssapp Postgres, Categories) kesinleştirdi: kökler **Genel Yetenek / Genel Kültür** (alan), altında **dersler** (Türkçe, Tarih...), derslerin altında da İçerik Üretimi sayfasının oluşturduğu **konular** (Osmanlı Kuruluş... vb.) var. Sorular karışık derinlikte: seed soruları derslere, pipeline üretimleri konulara bağlı (1 soru köke bağlı — veri tuhaflığı).
+
+Nihai tasarım:
+- `CategoryCascadeSelect` üç kademeli: **Alan → Ders → Konu**. Konu kutusu yalnızca seçili dersin altında konu varsa görünür.
+- Ders seçildiğinde: dersin konusu yoksa `onChange(dersId)` (ders geçerli yaprak); konusu varsa `onChange("")` ve konu seçimi beklenir.
+- Submit kuralı: kategori yaprak olmalı — parent'sız (alan) ise "Ders seçiniz", çocuğu olan ders ise "Konu seçiniz" hatası.
+- Alan/ders türetme zinciri value'dan (konu→ders→alan); `pickedAlan`/`pickedDers` local state'leri yalnızca value boşken devrede (effect'te setState yok).
+- **İçerik Üretimi sayfası düzeltmesi:** `content/page.tsx:38`'deki ders filtresi `parentCategoryId != null` konuları da ders listesine sokuyordu; doğrusu "parent'ı kök (alan) olanlar".
+
+İlk revizyondaki "hiyerarşi 2 seviye, konu yok" tespiti eksik veriye (yalnız seed) dayanıyordu; bu revizyon onu geçersiz kılar.
 
 ## Karar: soru sadece konuya atanır
 

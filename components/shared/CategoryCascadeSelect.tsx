@@ -10,26 +10,59 @@ interface CategoryCascadeSelectProps {
 }
 
 export function CategoryCascadeSelect({ categories, value, onChange }: CategoryCascadeSelectProps) {
-  // value doluyken ders her zaman değerden türetilir; pickedDers sadece konu boşken devrede.
+  // value doluyken alan/ders zincirden türetilir; picked* sadece value boşken devrede.
+  const [pickedAlan, setPickedAlan] = useState("");
   const [pickedDers, setPickedDers] = useState("");
 
-  const dersler = categories.filter((c) => !c.parentCategoryId);
-  const selected = categories.find((c) => c.id === value);
-  const effectiveDers = value ? (selected?.parentCategoryId ?? selected?.id ?? "") : pickedDers;
+  const byId = new Map(categories.map((c) => [c.id, c]));
+  const parentOf = (c?: AdminCategory) => (c?.parentCategoryId ? byId.get(c.parentCategoryId) : undefined);
+
+  // Zincir: value konuysa (ders, alan) = (parent, grand); dersse (kendisi, parent); alansa (-, kendisi).
+  const selected = byId.get(value);
+  const parent = parentOf(selected);
+  const grand = parentOf(parent);
+  const derivedDers = grand ? parent!.id : parent ? selected!.id : "";
+  const derivedAlan = grand ? grand.id : parent ? parent.id : (selected?.id ?? "");
+
+  const effectiveAlan = value ? derivedAlan : pickedAlan;
+  const effectiveDers = value ? derivedDers : pickedDers;
+
+  const alanlar = categories.filter((c) => !c.parentCategoryId);
+  const dersler = categories.filter((c) => c.parentCategoryId === effectiveAlan);
   const konular = categories.filter((c) => c.parentCategoryId === effectiveDers);
-  // Eski veri: value bir ders id'siyse konu dropdown'ı boş (placeholder) görünmeli.
-  const konuValue = selected?.parentCategoryId ? value : "";
+  const konuValue = selected && grand ? value : "";
 
   return (
     <div className="grid grid-cols-2 gap-4">
       <div className="space-y-2">
         <span className="text-sm font-medium">Alan</span>
         <Select
+          value={effectiveAlan}
+          onValueChange={(v) => {
+            if (!v || v === effectiveAlan) return;
+            setPickedAlan(v);
+            setPickedDers("");
+            onChange("");
+          }}
+        >
+          <SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger>
+          <SelectContent>
+            {alanlar.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <span className="text-sm font-medium">Ders</span>
+        <Select
           value={effectiveDers}
+          disabled={!effectiveAlan}
           onValueChange={(v) => {
             if (!v || v === effectiveDers) return;
+            const hasKonu = categories.some((c) => c.parentCategoryId === v);
+            setPickedAlan(effectiveAlan);
             setPickedDers(v);
-            onChange("");
+            // Konusu olmayan ders geçerli yapraktır; konusu varsa konu seçimi beklenir.
+            onChange(hasKonu ? "" : v);
           }}
         >
           <SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger>
@@ -38,19 +71,17 @@ export function CategoryCascadeSelect({ categories, value, onChange }: CategoryC
           </SelectContent>
         </Select>
       </div>
-      <div className="space-y-2">
-        <span className="text-sm font-medium">Ders</span>
-        <Select
-          value={konuValue}
-          onValueChange={(v) => v && onChange(v)}
-          disabled={!effectiveDers}
-        >
-          <SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger>
-          <SelectContent>
-            {konular.map((k) => <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
+      {konular.length > 0 && (
+        <div className="space-y-2">
+          <span className="text-sm font-medium">Konu</span>
+          <Select value={konuValue} onValueChange={(v) => v && onChange(v)}>
+            <SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger>
+            <SelectContent>
+              {konular.map((k) => <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
     </div>
   );
 }
