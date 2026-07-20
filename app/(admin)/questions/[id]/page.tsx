@@ -9,6 +9,7 @@ import { questionSchema, type QuestionInput } from "@/lib/validations/questionSc
 import { useCategories } from "@/lib/hooks/useCategories";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { VerificationBadge } from "@/components/shared/VerificationBadge";
+import { CategoryCascadeSelect } from "@/components/shared/CategoryCascadeSelect";
 import { RejectDialog } from "@/components/shared/RejectDialog";
 import { AiFixDialog } from "@/components/shared/AiFixDialog";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,15 @@ export default function QuestionDetailPage() {
     qc.invalidateQueries({ queryKey: ["admin-stats"] });
   };
 
+  const onSubmit = (d: QuestionInput) => {
+    const cat = categories.find((c) => c.id === d.categoryId);
+    if (!cat?.parentCategoryId) {
+      form.setError("categoryId", { message: "Konu seçiniz" });
+      return;
+    }
+    updateMutation.mutate(d);
+  };
+
   const updateMutation = useMutation({
     mutationFn: (data: QuestionInput) => updateQuestion(id, data),
     onSuccess: () => { invalidateAll(); toast.success("Kaydedildi"); },
@@ -117,7 +127,7 @@ export default function QuestionDetailPage() {
       )}
 
       <Form {...form}>
-        <form id="question-form" onSubmit={form.handleSubmit((d) => updateMutation.mutate(d))} className="max-w-2xl space-y-4">
+        <form id="question-form" onSubmit={form.handleSubmit(onSubmit)} className="max-w-2xl space-y-4">
           <Card>
             <CardHeader><CardTitle className="text-base">Soru</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -130,13 +140,7 @@ export default function QuestionDetailPage() {
               )} />
               <FormField control={form.control} name="categoryId" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Kategori</FormLabel>
-                  <Select onValueChange={(v) => v && field.onChange(v)} value={field.value}>
-                    <SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger>
-                    <SelectContent>
-                      {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <CategoryCascadeSelect categories={categories} value={field.value} onChange={field.onChange} />
                   <FormMessage />
                 </FormItem>
               )} />
