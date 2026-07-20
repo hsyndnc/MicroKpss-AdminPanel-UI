@@ -26,6 +26,7 @@ export interface AdminQuestion {
   createdAt: string;
   verificationStatus?: string | null; // "gecti" | "supheli" | "kontrol_edilemedi" | null
   verificationNote?: string | null;
+  sourceText?: string | null; // üretimde kullanılan kaynak metin (yalnız detay endpoint'i döner)
 }
 
 export interface AdminCategory {

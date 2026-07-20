@@ -130,6 +130,13 @@ export default function QuestionDetailPage() {
         </div>
       )}
 
+      {question.sourceText && (
+        <details className="max-w-2xl rounded-md border px-4 py-3 text-sm">
+          <summary className="cursor-pointer font-medium">Kaynak Metin</summary>
+          <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{question.sourceText}</p>
+        </details>
+      )}
+
       <Form {...form}>
         <form id="question-form" onSubmit={form.handleSubmit(onSubmit)} className="max-w-2xl space-y-4">
           <Card>
