@@ -23,7 +23,7 @@ export function CategoryCascadeSelect({ categories, value, onChange }: CategoryC
   return (
     <div className="grid grid-cols-2 gap-4">
       <div className="space-y-2">
-        <span className="text-sm font-medium">Ders</span>
+        <span className="text-sm font-medium">Alan</span>
         <Select
           value={effectiveDers}
           onValueChange={(v) => {
@@ -39,7 +39,7 @@ export function CategoryCascadeSelect({ categories, value, onChange }: CategoryC
         </Select>
       </div>
       <div className="space-y-2">
-        <span className="text-sm font-medium">Konu</span>
+        <span className="text-sm font-medium">Ders</span>
         <Select
           value={konuValue}
           onValueChange={(v) => v && onChange(v)}

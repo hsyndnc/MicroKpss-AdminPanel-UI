@@ -74,7 +74,7 @@ export default function QuestionDetailPage() {
   const onSubmit = (d: QuestionInput) => {
     const cat = categories.find((c) => c.id === d.categoryId);
     if (!cat?.parentCategoryId) {
-      form.setError("categoryId", { message: "Konu seçiniz" });
+      form.setError("categoryId", { message: "Ders seçiniz" });
       return;
     }
     updateMutation.mutate(d);

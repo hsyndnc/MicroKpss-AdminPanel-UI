@@ -7,6 +7,10 @@
 
 Soru detay sayfasındaki kategori seçici (`app/(admin)/questions/[id]/page.tsx:131-142`) bütün kategorileri tek düz listede gösteriyor; dersler ile konular karışık duruyor. Veri modelinde iki seviyeli hiyerarşi zaten var (`AdminCategory.parentCategoryId` / `parentCategoryName`). Seçici iki adımlı olacak: önce ders, sonra o dersin konuları.
 
+## Revizyon (2026-07-20): gerçek hiyerarşi Alan → Ders
+
+Tarayıcı testinde ortaya çıktı; backend seed verisi (`KpssSoru-backend .../DataSeeder.cs:81-92`) doğruladı: kök kategoriler **Genel Yetenek / Genel Kültür** (alan), çocukları **dersler** (Türkçe, Matematik, Tarih...) ve sorular doğrudan derslere bağlı. "Konu" diye üçüncü seviye veride yok. Cascade mantığı aynen geçerli; yalnızca etiketler düzeltildi: ilk kutu "Alan", ikinci kutu "Ders", hata mesajı "Ders seçiniz". Aşağıdaki metinde geçen ders→konu ikilisi bugünkü veride alan→ders'e karşılık gelir. İleride derslerin altına gerçek konular (3. seviye) eklenirse bileşen yeniden ele alınmalı.
+
 ## Karar: soru sadece konuya atanır
 
 Kullanıcı kararı: bir soru derse (üst kategoriye) doğrudan atanamaz; her soru bir konuya (alt kategoriye) ait olmalı. Halihazırda derse atanmış eski bir soru açılırsa ders dolu, konu boş görünür ve konu seçilmeden kayıt engellenir.
