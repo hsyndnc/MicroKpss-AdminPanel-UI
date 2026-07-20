@@ -35,7 +35,9 @@ export default function ContentPage() {
     getAdminCategories().then(setCategories);
   }, []);
 
-  const dersler = categories.filter((c) => c.parentCategoryId !== null && c.parentCategoryId !== undefined);
+  // Ders = üst kategorisi kök (alan) olanlar; konular da parent'lı olduğundan salt parent kontrolü yetmez.
+  const rootIds = new Set(categories.filter((c) => !c.parentCategoryId).map((c) => c.id));
+  const dersler = categories.filter((c) => c.parentCategoryId && rootIds.has(c.parentCategoryId));
   const konular = categories.filter((c) => c.parentCategoryId === selectedDersId);
 
   async function handleSubmit() {
