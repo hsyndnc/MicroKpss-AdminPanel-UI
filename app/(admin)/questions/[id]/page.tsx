@@ -152,7 +152,7 @@ export default function QuestionDetailPage() {
                 <FormField control={form.control} name="difficulty" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Zorluk</FormLabel>
-                    <Select onValueChange={(v) => v && field.onChange(v)} value={field.value}>
+                    <Select items={[{ value: "Easy", label: "Kolay" }, { value: "Medium", label: "Orta" }, { value: "Hard", label: "Zor" }]} onValueChange={(v) => v && field.onChange(v)} value={field.value}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Easy">Kolay</SelectItem>
@@ -165,7 +165,7 @@ export default function QuestionDetailPage() {
                 <FormField control={form.control} name="questionType" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Tür</FormLabel>
-                    <Select onValueChange={(v) => v && field.onChange(v)} value={field.value}>
+                    <Select items={[{ value: "MultipleChoice", label: "Çok Şıklı" }, { value: "TrueFalse", label: "D/Y" }]} onValueChange={(v) => v && field.onChange(v)} value={field.value}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="MultipleChoice">Çok Şıklı</SelectItem>
@@ -197,7 +197,7 @@ export default function QuestionDetailPage() {
               <FormField control={form.control} name="correctAnswer" render={({ field }) => (
                 <FormItem className="mt-3">
                   <FormLabel>Doğru Cevap</FormLabel>
-                  <Select onValueChange={(v) => v && field.onChange(v)} value={field.value}>
+                  <Select items={watchedOptions.map((opt, i) => opt ? { value: opt, label: `${String.fromCharCode(65 + i)}. ${opt}` } : null).filter((x) => x !== null)} onValueChange={(v) => v && field.onChange(v)} value={field.value}>
                     <SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger>
                     <SelectContent>
                       {watchedOptions.map((opt, i) =>

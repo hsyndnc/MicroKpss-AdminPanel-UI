@@ -38,6 +38,7 @@ export function CategoryCascadeSelect({ categories, value, onChange }: CategoryC
         <span className="text-sm font-medium">Alan</span>
         <Select
           value={effectiveAlan}
+          items={alanlar.map((a) => ({ value: a.id, label: a.name }))}
           onValueChange={(v) => {
             if (!v || v === effectiveAlan) return;
             setPickedAlan(v);
@@ -55,6 +56,7 @@ export function CategoryCascadeSelect({ categories, value, onChange }: CategoryC
         <span className="text-sm font-medium">Ders</span>
         <Select
           value={effectiveDers}
+          items={dersler.map((d) => ({ value: d.id, label: d.name }))}
           disabled={!effectiveAlan}
           onValueChange={(v) => {
             if (!v || v === effectiveDers) return;
@@ -74,7 +76,7 @@ export function CategoryCascadeSelect({ categories, value, onChange }: CategoryC
       {konular.length > 0 && (
         <div className="space-y-2">
           <span className="text-sm font-medium">Konu</span>
-          <Select value={konuValue} onValueChange={(v) => v && onChange(v)}>
+          <Select value={konuValue} items={konular.map((k) => ({ value: k.id, label: k.name }))} onValueChange={(v) => v && onChange(v)}>
             <SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger>
             <SelectContent>
               {konular.map((k) => <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>)}

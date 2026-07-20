@@ -124,7 +124,7 @@ export default function CategoriesPage() {
               <FormField control={form.control} name="parentCategoryId" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Üst Kategori (opsiyonel)</FormLabel>
-                  <Select onValueChange={(v) => field.onChange(v ?? "")} value={field.value ?? ""}>
+                  <Select items={[{ value: "", label: "Yok" }, ...categories.filter((c) => c.id !== editTarget?.id).map((c) => ({ value: c.id, label: c.name }))]} onValueChange={(v) => field.onChange(v ?? "")} value={field.value ?? ""}>
                     <SelectTrigger><SelectValue placeholder="Seçiniz" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">Yok</SelectItem>

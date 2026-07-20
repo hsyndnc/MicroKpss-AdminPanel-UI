@@ -80,13 +80,13 @@ function UsersContent() {
           onChange={(e) => setSearchInput(e.target.value)}
           className="w-64"
         />
-        <Select value={role} onValueChange={(v) => v && setQueryParam("role", v)}>
+        <Select value={role} items={ROLE_OPTIONS} onValueChange={(v) => v && setQueryParam("role", v)}>
           <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
           <SelectContent>
             {ROLE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={kpssType} onValueChange={(v) => v && setQueryParam("kpssType", v)}>
+        <Select value={kpssType} items={KPSS_OPTIONS} onValueChange={(v) => v && setQueryParam("kpssType", v)}>
           <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
           <SelectContent>
             {KPSS_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}

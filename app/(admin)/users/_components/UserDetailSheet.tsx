@@ -84,7 +84,7 @@ function UserDetailBody({ user }: { user: AdminUser }) {
       <div className="mt-6 border-t pt-4 px-1 space-y-2">
         <p className="text-sm font-medium">Rol</p>
         <div className="flex gap-2">
-          <Select value={pendingRole} onValueChange={(v) => v && setPendingRole(v as UserRole)}>
+          <Select value={pendingRole} items={Object.entries(roleLabel).map(([value, label]) => ({ value, label }))} onValueChange={(v) => v && setPendingRole(v as UserRole)}>
             <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="Standard">Standart</SelectItem>

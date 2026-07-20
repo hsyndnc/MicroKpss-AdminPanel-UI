@@ -100,7 +100,7 @@ function QuestionsContent() {
       <QuestionStats onStatusFilter={(s) => setQueryParam("status", s)} />
 
       <div className="flex items-center gap-3">
-        <Select value={status} onValueChange={(v) => v && setQueryParam("status", v)}>
+        <Select value={status} items={STATUS_OPTIONS} onValueChange={(v) => v && setQueryParam("status", v)}>
           <SelectTrigger className="w-40">
             <SelectValue />
           </SelectTrigger>

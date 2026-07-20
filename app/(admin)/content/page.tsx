@@ -143,7 +143,7 @@ export default function ContentPage() {
       <div className="space-y-4">
         <div className="space-y-1">
           <Label>Ders</Label>
-          <Select onValueChange={(v) => { setSelectedDersId(v as string); setSelectedKonuId(""); setIsNewKonu(false); }}>
+          <Select items={dersler.map((d) => ({ value: d.id, label: d.name }))} onValueChange={(v) => { setSelectedDersId(v as string); setSelectedKonuId(""); setIsNewKonu(false); }}>
             <SelectTrigger><SelectValue placeholder="Ders seç..." /></SelectTrigger>
             <SelectContent>
               {dersler.map((d) => (
@@ -156,7 +156,7 @@ export default function ContentPage() {
         {selectedDersId && (
           <div className="space-y-1">
             <Label>Konu</Label>
-            <Select onValueChange={(v) => {
+            <Select items={[...konular.map((k) => ({ value: k.id, label: k.name })), { value: "__new__", label: "+ Yeni konu ekle..." }]} onValueChange={(v) => {
               const val = v as string;
               if (val === "__new__") { setIsNewKonu(true); setSelectedKonuId(""); }
               else { setIsNewKonu(false); setSelectedKonuId(val); }
