@@ -5,74 +5,60 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { getAdminCategories, createCategory } from "@/lib/api/categories";
-import { uploadPdfToPipeline, getPipelineJob } from "@/lib/api/pipeline";
+import { getAdminCategories } from "@/lib/api/categories";
+import {
+  uploadPdfToPipeline, getPipelineJob, saveTopics, generateFromTopic,
+  type TopicTree,
+} from "@/lib/api/pipeline";
+import { TopicTreeEditor } from "@/components/topic-tree-editor";
 import type { AdminCategory } from "@/lib/types";
 
-type Step = "form" | "processing" | "done" | "error" | "export_error";
+type Step = "form" | "detecting" | "edit" | "generating" | "done" | "error";
 
 export default function ContentPage() {
   const router = useRouter();
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [selectedDersId, setSelectedDersId] = useState("");
   const [selectedKonuId, setSelectedKonuId] = useState("");
-  const [newKonuName, setNewKonuName] = useState("");
-  const [isNewKonu, setIsNewKonu] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  const [nQuestions, setNQuestions] = useState(10);
   const [step, setStep] = useState<Step>("form");
-  const [resultCount, setResultCount] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
+  const [sourceId, setSourceId] = useState("");
+  const [tree, setTree] = useState<TopicTree | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState("");
+  const [count, setCount] = useState(10);
+  const [resultCount, setResultCount] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    getAdminCategories().then(setCategories);
-  }, []);
+  useEffect(() => { getAdminCategories().then(setCategories); }, []);
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
-  // Ders = üst kategorisi kök (alan) olanlar; konular da parent'lı olduğundan salt parent kontrolü yetmez.
   const rootIds = new Set(categories.filter((c) => !c.parentCategoryId).map((c) => c.id));
   const dersler = categories.filter((c) => c.parentCategoryId && rootIds.has(c.parentCategoryId));
   const konular = categories.filter((c) => c.parentCategoryId === selectedDersId);
 
-  async function handleSubmit() {
-    if (!file || !selectedDersId) return;
+  // Ağaçtaki tüm seçilebilir düğümler (konu + alt başlık)
+  const nodeOptions = tree
+    ? tree.topics.flatMap((t) => [
+        { id: t.id, label: t.title },
+        ...t.subtopics.map((s) => ({ id: s.id, label: `— ${s.title}` })),
+      ])
+    : [];
 
-    let categoryId = selectedKonuId;
-
-    if (isNewKonu) {
-      if (!newKonuName.trim()) return;
-      const created = await createCategory({
-        name: newKonuName.trim(),
-        parentCategoryId: selectedDersId,
-      });
-      categoryId = created.id;
-    }
-
-    if (!categoryId) return;
-
+  async function handleUpload() {
+    if (!file || !selectedKonuId) return;
     try {
-      setStep("processing");
-      const { job_id } = await uploadPdfToPipeline(file, categoryId, nQuestions);
-
+      setStep("detecting");
+      const { job_id } = await uploadPdfToPipeline(file);
       pollRef.current = setInterval(async () => {
         const job = await getPipelineJob(job_id);
-        if (job.status === "done") {
+        if (job.status === "done" && job.topics && job.source_id) {
           clearInterval(pollRef.current!);
-          if (job.export?.error) {
-            setErrorMsg(
-              `Sorular üretildi (${job.count ?? 0} adet) ama veritabanına kaydedilemedi: ${job.export.error}`
-            );
-            setStep("export_error");
-            return;
-          }
-          setResultCount(job.export?.imported ?? job.count ?? 0);
-          setStep("done");
+          setSourceId(job.source_id);
+          setTree(job.topics);
+          setStep("edit");
         } else if (job.status === "error") {
           clearInterval(pollRef.current!);
           setErrorMsg(job.error ?? "Bilinmeyen hata");
@@ -85,101 +71,118 @@ export default function ContentPage() {
     }
   }
 
-  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
-
-  if (step === "processing") {
-    return (
-      <div className="flex flex-col items-center justify-center h-96 gap-4">
-        <div className="text-2xl animate-spin">⏳</div>
-        <p className="text-gray-600 font-medium">Sorular üretiliyor...</p>
-        <p className="text-sm text-gray-400">Bu işlem 1-2 dakika sürebilir.</p>
-      </div>
-    );
+  async function handleSaveTree() {
+    if (!tree) return;
+    const saved = await saveTopics(sourceId, tree);
+    setTree(saved);
   }
 
+  async function handleGenerate() {
+    if (!selectedNodeId || !selectedKonuId) return;
+    try {
+      setStep("generating");
+      if (tree) await saveTopics(sourceId, tree); // üretimden önce düzeltmeleri kaydet
+      const res = await generateFromTopic(sourceId, selectedNodeId, {
+        count, category_id: selectedKonuId,
+      });
+      if (res.export?.error) {
+        setErrorMsg(`Sorular üretildi ama kaydedilemedi: ${res.export.error}`);
+        setStep("error");
+        return;
+      }
+      setResultCount(res.export?.imported ?? res.count);
+      setStep("done");
+    } catch {
+      setErrorMsg("Üretim sırasında hata.");
+      setStep("error");
+    }
+  }
+
+  if (step === "detecting") {
+    return <Centered emoji="⏳" spin title="Belge konulara ayrılıyor..." sub="Başlıklar tespit ediliyor." />;
+  }
+  if (step === "generating") {
+    return <Centered emoji="⏳" spin title="Sorular üretiliyor..." sub="Bu işlem 1-2 dakika sürebilir." />;
+  }
   if (step === "done") {
     return (
       <div className="flex flex-col items-center justify-center h-96 gap-4">
         <div className="text-5xl">✅</div>
         <p className="font-medium text-lg">{resultCount} soru veritabanına eklendi</p>
-        <p className="text-sm text-gray-500">Sorular inceleme kuyruğuna eklendi.</p>
-        <Button onClick={() => router.push("/questions?status=PendingReview")}>
-          Bekleyen Soruları Gör
-        </Button>
+        <Button onClick={() => router.push("/questions?status=PendingReview")}>Bekleyen Soruları Gör</Button>
+        <Button variant="outline" onClick={() => setStep("edit")}>Aynı belgeden üretmeye devam et</Button>
       </div>
     );
   }
-
-  if (step === "export_error") {
-    return (
-      <div className="flex flex-col items-center justify-center h-96 gap-4">
-        <div className="text-5xl">⚠️</div>
-        <p className="font-medium text-orange-600">Sorular üretildi ama kaydedilemedi</p>
-        <p className="text-sm text-gray-500 text-center max-w-sm">{errorMsg}</p>
-        <p className="text-xs text-gray-400">Backend loglarını kontrol edin.</p>
-        <Button variant="outline" onClick={() => setStep("form")}>Tekrar Dene</Button>
-      </div>
-    );
-  }
-
   if (step === "error") {
     return (
       <div className="flex flex-col items-center justify-center h-96 gap-4">
         <div className="text-5xl">❌</div>
-        <p className="font-medium text-red-600">Hata oluştu</p>
-        <p className="text-sm text-gray-500">{errorMsg}</p>
-        <Button variant="outline" onClick={() => setStep("form")}>Tekrar Dene</Button>
+        <p className="font-medium text-red-600">Hata</p>
+        <p className="text-sm text-gray-500 text-center max-w-sm">{errorMsg}</p>
+        <Button variant="outline" onClick={() => setStep(tree ? "edit" : "form")}>Geri dön</Button>
       </div>
     );
   }
 
+  if (step === "edit" && tree) {
+    return (
+      <div className="max-w-2xl mx-auto py-10 space-y-6">
+        <h1 className="text-2xl font-bold">Konu Ağacı — {tree.file_name}</h1>
+        <p className="text-gray-500 text-sm">Başlıkları düzelt, sonra bir konu seçip üret.</p>
+        <TopicTreeEditor tree={tree} onChange={setTree} />
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleSaveTree}>Ağacı Kaydet</Button>
+        </div>
+
+        <div className="rounded-lg border p-4 space-y-3">
+          <Label>Hangi konudan üretilsin?</Label>
+          <Select items={nodeOptions.map((n) => ({ value: n.id, label: n.label }))}
+                  onValueChange={(v) => setSelectedNodeId(v as string)}>
+            <SelectTrigger><SelectValue placeholder="Konu/alt başlık seç..." /></SelectTrigger>
+            <SelectContent>
+              {nodeOptions.map((n) => (<SelectItem key={n.id} value={n.id}>{n.label}</SelectItem>))}
+            </SelectContent>
+          </Select>
+          <div className="space-y-1">
+            <Label>Kaç soru?</Label>
+            <Input type="number" min={1} max={30} value={count}
+                   onChange={(e) => setCount(Number(e.target.value))} className="w-32" />
+          </div>
+          <Button className="w-full" disabled={!selectedNodeId} onClick={handleGenerate}>Soru Üret</Button>
+        </div>
+      </div>
+    );
+  }
+
+  // step === "form"
   return (
     <div className="max-w-xl mx-auto py-10 space-y-6">
       <h1 className="text-2xl font-bold">İçerik Üretimi</h1>
-      <p className="text-gray-500 text-sm">
-        PDF yükle → AI sorular üretir → Sen onayla → Uygulamaya yansır
-      </p>
-
+      <p className="text-gray-500 text-sm">Hedef kategoriyi seç, PDF yükle → belge konulara ayrılır → konu seçip üretirsin.</p>
       <div className="space-y-4">
         <div className="space-y-1">
           <Label>Ders</Label>
-          <Select items={dersler.map((d) => ({ value: d.id, label: d.name }))} onValueChange={(v) => { setSelectedDersId(v as string); setSelectedKonuId(""); setIsNewKonu(false); }}>
+          <Select items={dersler.map((d) => ({ value: d.id, label: d.name }))}
+                  onValueChange={(v) => { setSelectedDersId(v as string); setSelectedKonuId(""); }}>
             <SelectTrigger><SelectValue placeholder="Ders seç..." /></SelectTrigger>
             <SelectContent>
-              {dersler.map((d) => (
-                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-              ))}
+              {dersler.map((d) => (<SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>))}
             </SelectContent>
           </Select>
         </div>
-
         {selectedDersId && (
           <div className="space-y-1">
-            <Label>Konu</Label>
-            <Select items={[...konular.map((k) => ({ value: k.id, label: k.name })), { value: "__new__", label: "+ Yeni konu ekle..." }]} onValueChange={(v) => {
-              const val = v as string;
-              if (val === "__new__") { setIsNewKonu(true); setSelectedKonuId(""); }
-              else { setIsNewKonu(false); setSelectedKonuId(val); }
-            }}>
+            <Label>Konu (kayıt hedefi)</Label>
+            <Select items={konular.map((k) => ({ value: k.id, label: k.name }))}
+                    onValueChange={(v) => setSelectedKonuId(v as string)}>
               <SelectTrigger><SelectValue placeholder="Konu seç..." /></SelectTrigger>
               <SelectContent>
-                {konular.map((k) => (
-                  <SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>
-                ))}
-                <SelectItem value="__new__">+ Yeni konu ekle...</SelectItem>
+                {konular.map((k) => (<SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>))}
               </SelectContent>
             </Select>
-            {isNewKonu && (
-              <Input
-                placeholder="Konu adı gir..."
-                value={newKonuName}
-                onChange={(e) => setNewKonuName(e.target.value)}
-                className="mt-2"
-              />
-            )}
           </div>
         )}
-
         <div className="space-y-1">
           <Label>PDF Dosyası</Label>
           <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
@@ -191,30 +194,24 @@ export default function ContentPage() {
                 <span className="text-xs text-gray-400 mt-1">Sadece .pdf</span>
               </>
             )}
-            <input type="file" accept=".pdf" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            <input type="file" accept=".pdf" className="hidden"
+                   onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           </label>
         </div>
-
-        <div className="space-y-1">
-          <Label>Kaç soru üretilsin?</Label>
-          <Input
-            type="number"
-            min={1}
-            max={30}
-            value={nQuestions}
-            onChange={(e) => setNQuestions(Number(e.target.value))}
-            className="w-32"
-          />
-        </div>
-
-        <Button
-          className="w-full"
-          disabled={!file || !selectedDersId || (!selectedKonuId && !isNewKonu) || (isNewKonu && !newKonuName.trim())}
-          onClick={handleSubmit}
-        >
-          Soru Üret
+        <Button className="w-full" disabled={!file || !selectedKonuId} onClick={handleUpload}>
+          Yükle ve Konulara Ayır
         </Button>
       </div>
+    </div>
+  );
+}
+
+function Centered({ emoji, spin, title, sub }: { emoji: string; spin?: boolean; title: string; sub: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-96 gap-4">
+      <div className={`text-2xl ${spin ? "animate-spin" : ""}`}>{emoji}</div>
+      <p className="text-gray-600 font-medium">{title}</p>
+      <p className="text-sm text-gray-400">{sub}</p>
     </div>
   );
 }

@@ -2,9 +2,24 @@ import axios from "axios";
 
 // Pipeline'a doğrudan değil, kendi route handler proxy'mize gidiyoruz —
 // X-Api-Key sadece sunucu tarafında eklenir, tarayıcıya inmez.
-const pipelineClient = axios.create({
-  baseURL: "/api/pipeline",
-});
+const pipelineClient = axios.create({ baseURL: "/api/pipeline" });
+
+export interface TopicSubtopic {
+  id: string;
+  title: string;
+  chunk_ids: string[];
+}
+export interface Topic {
+  id: string;
+  title: string;
+  subtopics: TopicSubtopic[];
+}
+export interface TopicTree {
+  source_id: string;
+  file_name: string;
+  topics: Topic[];
+  previews?: Record<string, string>;
+}
 
 export interface PipelineUploadResponse {
   job_id: string;
@@ -15,25 +30,48 @@ export interface PipelineUploadResponse {
 export interface PipelineJobResponse {
   status: "queued" | "processing" | "done" | "error";
   file: string;
-  count?: number;
-  export?: { imported?: number; error?: string };
+  source_id?: string;
+  topics?: TopicTree;
   error?: string;
 }
 
-export async function uploadPdfToPipeline(
-  file: File,
-  categoryId: string,
-  nQuestions: number
-): Promise<PipelineUploadResponse> {
+export interface GenerateResult {
+  status: string;
+  count: number;
+  export?: { imported?: number; error?: string };
+}
+
+export async function uploadPdfToPipeline(file: File): Promise<PipelineUploadResponse> {
   const form = new FormData();
   form.append("file", file);
-  form.append("category_id", categoryId);
-  form.append("n_questions", String(nQuestions));
   const { data } = await pipelineClient.post<PipelineUploadResponse>("/upload", form);
   return data;
 }
 
 export async function getPipelineJob(jobId: string): Promise<PipelineJobResponse> {
   const { data } = await pipelineClient.get<PipelineJobResponse>(`/jobs/${jobId}`);
+  return data;
+}
+
+export async function getTopics(sourceId: string): Promise<TopicTree> {
+  const { data } = await pipelineClient.get<TopicTree>(`/sources/${sourceId}/topics`);
+  return data;
+}
+
+export async function saveTopics(sourceId: string, tree: TopicTree): Promise<TopicTree> {
+  const { data } = await pipelineClient.put<{ topics: TopicTree }>(
+    `/sources/${sourceId}/topics`, tree
+  );
+  return data.topics;
+}
+
+export async function generateFromTopic(
+  sourceId: string,
+  nodeId: string,
+  body: { count: number; category_id: string; tip?: string }
+): Promise<GenerateResult> {
+  const { data } = await pipelineClient.post<GenerateResult>(
+    `/sources/${sourceId}/topics/${nodeId}/generate`, body
+  );
   return data;
 }

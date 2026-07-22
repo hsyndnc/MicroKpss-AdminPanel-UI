@@ -103,11 +103,14 @@ export default function QuestionDetailPage() {
   if (!question) return <div className="text-gray-400">Soru bulunamadı.</div>;
 
   const watchedOptions = form.watch("options");
+  const hasContext =
+    !!question.sourceText ||
+    (question.verificationStatus === "supheli" && !!question.verificationNote);
 
   return (
     <div className="-m-6 flex min-h-[calc(100%+3rem)] flex-col">
       <div className="space-y-6 p-6">
-      <div className="flex max-w-2xl items-center justify-between">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => router.push("/questions")}>← Geri</Button>
           <h1 className="text-xl font-bold">Soru Detayı</h1>
@@ -123,22 +126,9 @@ export default function QuestionDetailPage() {
         </div>
       </div>
 
-      {question.verificationStatus === "supheli" && question.verificationNote && (
-        <div className="max-w-2xl rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <p className="font-medium">AI doğrulama notu</p>
-          <p className="mt-1">{question.verificationNote}</p>
-        </div>
-      )}
-
-      {question.sourceText && (
-        <details className="max-w-2xl rounded-md border px-4 py-3 text-sm">
-          <summary className="cursor-pointer font-medium">Kaynak Metin</summary>
-          <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{question.sourceText}</p>
-        </details>
-      )}
-
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,42rem)_minmax(0,1fr)]">
       <Form {...form}>
-        <form id="question-form" onSubmit={form.handleSubmit(onSubmit)} className="max-w-2xl space-y-4">
+        <form id="question-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <Card>
             <CardHeader><CardTitle className="text-base">Soru</CardTitle></CardHeader>
             <CardContent className="space-y-4">
@@ -238,6 +228,28 @@ export default function QuestionDetailPage() {
 
         </form>
       </Form>
+
+      {hasContext && (
+        <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+          {question.verificationStatus === "supheli" && question.verificationNote && (
+            <Card className="border-amber-300 bg-amber-50">
+              <CardHeader><CardTitle className="text-base text-amber-800">AI doğrulama notu</CardTitle></CardHeader>
+              <CardContent className="pt-0 text-sm text-amber-800">{question.verificationNote}</CardContent>
+            </Card>
+          )}
+          {question.sourceText && (
+            <Card>
+              <CardHeader><CardTitle className="text-base">Kaynak Metin</CardTitle></CardHeader>
+              <CardContent>
+                <p className="max-h-[calc(100vh-16rem)] overflow-auto whitespace-pre-wrap text-sm text-muted-foreground">
+                  {question.sourceText}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </aside>
+      )}
+      </div>
       </div>
 
       <div className="sticky bottom-0 z-10 mt-auto border-t bg-white px-6 py-4">
