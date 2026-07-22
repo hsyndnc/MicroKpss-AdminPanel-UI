@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, FileText, FolderOpen, Users, Calendar, Upload, Scale, LogOut } from "lucide-react";
+import { LayoutDashboard, FileText, FolderOpen, Users, Calendar, Upload, Scale, LogOut, Library } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/store/authStore";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ const navItems = [
   { href: "/users", label: "Kullanıcılar", icon: Users },
   { href: "/exam-dates", label: "Sınav Tarihleri", icon: Calendar },
   { href: "/content", label: "İçerik Üretimi", icon: Upload },
+  { href: "/sources", label: "Kaynaklar", icon: Library },
   { href: "/legal", label: "Yasal Metinler", icon: Scale },
 ];
 
