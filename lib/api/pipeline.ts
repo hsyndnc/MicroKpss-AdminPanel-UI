@@ -75,3 +75,20 @@ export async function generateFromTopic(
   );
   return data;
 }
+
+export interface SourceSummary {
+  source_id: string;
+  file_name: string;
+  topic_count: number;
+  question_count: number;
+  created_at: string | null;
+}
+
+export async function listSources(): Promise<SourceSummary[]> {
+  const { data } = await pipelineClient.get<SourceSummary[]>("/sources");
+  return data;
+}
+
+export async function deleteSource(sourceId: string, deleteQuestions: boolean): Promise<void> {
+  await pipelineClient.delete(`/sources/${sourceId}?delete_questions=${deleteQuestions}`);
+}
