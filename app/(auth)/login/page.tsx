@@ -12,10 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
-function setAuthCookie(token: string) {
-  document.cookie = `token=${token}; path=/; max-age=86400`;
-}
-
 export default function LoginPage() {
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);
@@ -28,9 +24,7 @@ export default function LoginPage() {
   async function onSubmit(values: LoginInput) {
     try {
       const data = await login(values.email, values.password);
-      localStorage.setItem("token", data.accessToken);
-      setAuthCookie(data.accessToken);
-      setAuth(data.accessToken, { email: data.email, role: data.role as UserRole });
+      setAuth({ email: data.email, role: data.role as UserRole });
       router.push("/dashboard");
     } catch {
       toast.error("E-posta veya şifre hatalı.");

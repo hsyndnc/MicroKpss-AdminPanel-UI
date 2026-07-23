@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, FileText, FolderOpen, Users, Calendar, Upload, Scale, LogOut, Library } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/store/authStore";
+import { logout } from "@/lib/api/auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -23,10 +24,9 @@ export function Sidebar({ pendingCount = 0 }: { pendingCount?: number }) {
   const router = useRouter();
   const clearAuth = useAuthStore((s) => s.clearAuth);
 
-  function handleLogout() {
+  async function handleLogout() {
+    await logout();
     clearAuth();
-    localStorage.removeItem("token");
-    document.cookie = "token=; path=/; max-age=0";
     router.push("/login");
   }
 

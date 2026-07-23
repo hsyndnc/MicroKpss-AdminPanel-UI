@@ -3,19 +3,17 @@ import { persist } from "zustand/middleware";
 import type { AuthUser } from "@/lib/types";
 
 interface AuthState {
-  token: string | null;
   user: AuthUser | null;
-  setAuth: (token: string, user: AuthUser) => void;
+  setAuth: (user: AuthUser) => void;
   clearAuth: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      token: null,
       user: null,
-      setAuth: (token, user) => set({ token, user }),
-      clearAuth: () => set({ token: null, user: null }),
+      setAuth: (user) => set({ user }),
+      clearAuth: () => set({ user: null }),
     }),
     { name: "kpss-admin-auth" }
   )
