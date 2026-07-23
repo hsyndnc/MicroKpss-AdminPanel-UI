@@ -1,8 +1,9 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { getLegalDocument, upsertLegalDocument } from "@/lib/api/legal";
-import type { LegalDocumentType } from "@/lib/types";
+import { useLegalDocument, useUpsertLegalDocument } from "@/lib/hooks/useLegal";
+import { toast } from "sonner";
+import type { LegalDocument, LegalDocumentType } from "@/lib/types";
 
 const DOC_TYPES: { type: LegalDocumentType; label: string }[] = [
   { type: "PrivacyPolicy", label: "Gizlilik Politikası" },
@@ -12,49 +13,7 @@ const DOC_TYPES: { type: LegalDocumentType; label: string }[] = [
 
 export default function LegalPage() {
   const [activeType, setActiveType] = useState<LegalDocumentType>("PrivacyPolicy");
-  const [content, setContent] = useState("");
-  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
-
-  const load = useCallback(async (type: LegalDocumentType) => {
-    setLoading(true);
-    setMessage(null);
-    try {
-      const doc = await getLegalDocument(type);
-      setContent(doc?.content ?? "");
-      setUpdatedAt(doc?.updatedAt ?? null);
-    } catch {
-      setMessage({ kind: "err", text: "Metin yüklenemedi." });
-      setContent("");
-      setUpdatedAt(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load(activeType);
-  }, [activeType, load]);
-
-  async function handleSave() {
-    if (!content.trim()) {
-      setMessage({ kind: "err", text: "İçerik boş olamaz." });
-      return;
-    }
-    setSaving(true);
-    setMessage(null);
-    try {
-      const doc = await upsertLegalDocument(activeType, content);
-      setUpdatedAt(doc.updatedAt);
-      setMessage({ kind: "ok", text: "Kaydedildi." });
-    } catch {
-      setMessage({ kind: "err", text: "Kaydedilemedi. Backend loglarını kontrol edin." });
-    } finally {
-      setSaving(false);
-    }
-  }
+  const { data, isLoading, isError } = useLegalDocument(activeType);
 
   return (
     <div className="space-y-6">
@@ -81,36 +40,55 @@ export default function LegalPage() {
         ))}
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <p className="text-sm text-gray-400">Yükleniyor...</p>
+      ) : isError ? (
+        <p className="text-sm text-red-600">Metin yüklenemedi.</p>
       ) : (
-        <div className="space-y-4">
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={24}
-            className="w-full border rounded-lg p-4 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="# Başlık&#10;&#10;Markdown içeriği buraya..."
-          />
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400">
-              {updatedAt
-                ? `Son güncelleme: ${new Date(updatedAt).toLocaleString("tr-TR")}`
-                : "Henüz kaydedilmemiş."}
-            </span>
-            <div className="flex items-center gap-3">
-              {message && (
-                <span className={`text-sm ${message.kind === "ok" ? "text-green-600" : "text-red-600"}`}>
-                  {message.text}
-                </span>
-              )}
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? "Kaydediliyor..." : "Kaydet"}
-              </Button>
-            </div>
-          </div>
-        </div>
+        <LegalEditor key={activeType} type={activeType} doc={data ?? null} />
       )}
+    </div>
+  );
+}
+
+function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocument | null }) {
+  const [content, setContent] = useState(doc?.content ?? "");
+  const [updatedAt, setUpdatedAt] = useState<string | null>(doc?.updatedAt ?? null);
+  const upsert = useUpsertLegalDocument();
+
+  async function handleSave() {
+    if (!content.trim()) {
+      toast.error("İçerik boş olamaz.");
+      return;
+    }
+    try {
+      const saved = await upsert.mutateAsync({ type, content });
+      setUpdatedAt(saved.updatedAt);
+      toast.success("Kaydedildi.");
+    } catch {
+      toast.error("Kaydedilemedi. Backend loglarını kontrol edin.");
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <textarea
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        rows={24}
+        className="w-full border rounded-lg p-4 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        placeholder="# Başlık&#10;&#10;Markdown içeriği buraya..."
+      />
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-gray-400">
+          {updatedAt
+            ? `Son güncelleme: ${new Date(updatedAt).toLocaleString("tr-TR")}`
+            : "Henüz kaydedilmemiş."}
+        </span>
+        <Button onClick={handleSave} disabled={upsert.isPending}>
+          {upsert.isPending ? "Kaydediliyor..." : "Kaydet"}
+        </Button>
+      </div>
     </div>
   );
 }
