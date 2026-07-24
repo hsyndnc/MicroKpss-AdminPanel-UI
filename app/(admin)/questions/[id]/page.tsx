@@ -108,8 +108,8 @@ export default function QuestionDetailPage() {
     (question.verificationStatus === "supheli" && !!question.verificationNote);
 
   return (
-    <div className="-m-6 flex min-h-[calc(100%+3rem)] flex-col">
-      <div className="space-y-6 p-6">
+    <div className="-m-6 flex h-[calc(100%+3rem)] flex-col">
+      <div className="flex-1 space-y-6 overflow-auto p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => router.push("/questions")}>← Geri</Button>
@@ -252,7 +252,7 @@ export default function QuestionDetailPage() {
       </div>
       </div>
 
-      <div className="sticky bottom-0 z-10 mt-auto border-t bg-white px-6 py-4">
+      <div className="shrink-0 border-t bg-white px-6 py-4">
         <div className="flex max-w-2xl items-center justify-between">
           <Button type="submit" form="question-form" disabled={updateMutation.isPending}>
             {updateMutation.isPending ? "Kaydediliyor..." : "Kaydet"}
