@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,21 +12,15 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { listSources, deleteSource, type SourceSummary } from "@/lib/api/pipeline";
+import { deleteSource, type SourceSummary } from "@/lib/api/pipeline";
+import { useSources } from "@/lib/hooks/useSources";
 
 export default function SourcesPage() {
   const router = useRouter();
-  const [sources, setSources] = useState<SourceSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: sources = [], isLoading, isError, refetch } = useSources();
   const [target, setTarget] = useState<SourceSummary | null>(null);
   const [alsoQuestions, setAlsoQuestions] = useState(false);
   const [deleting, setDeleting] = useState(false);
-
-  async function refresh() {
-    try { setSources(await listSources()); }
-    finally { setLoading(false); }
-  }
-  useEffect(() => { refresh(); }, []);
 
   async function confirmDelete() {
     if (!target) return;
@@ -35,7 +29,7 @@ export default function SourcesPage() {
       await deleteSource(target.source_id, alsoQuestions);
       setTarget(null);
       setAlsoQuestions(false);
-      await refresh();
+      await refetch();
     } finally { setDeleting(false); }
   }
 
@@ -44,8 +38,13 @@ export default function SourcesPage() {
       <h1 className="text-2xl font-bold">Kaynaklar</h1>
       <p className="text-gray-500 text-sm">Yüklenmiş belgeler. Bir satıra tıkla → konu ağacından soru üret.</p>
 
-      {loading ? (
+      {isLoading ? (
         <p className="text-gray-400 text-sm">Yükleniyor...</p>
+      ) : isError ? (
+        <div className="space-y-3">
+          <p className="text-red-600 text-sm">Kaynaklar yüklenemedi — pipeline servisine ulaşılamıyor.</p>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>Tekrar dene</Button>
+        </div>
       ) : sources.length === 0 ? (
         <p className="text-gray-400 text-sm">Henüz kaynak yok. İçerik Üretimi&apos;nden PDF yükle.</p>
       ) : (
