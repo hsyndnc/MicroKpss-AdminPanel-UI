@@ -38,9 +38,11 @@ function UserDetailBody({ user }: { user: AdminUser }) {
       { id: user.id, role: pendingRole },
       {
         onSuccess: () => toast.success("Rol güncellendi."),
-        onError: () => {
+        onError: (err) => {
           setPendingRole(user.role);
-          toast.error("Rol güncellenemedi.");
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const msg = (err as any)?.response?.data?.error as string | undefined;
+          toast.error(msg ?? "Rol güncellenemedi.");
         },
       }
     );
