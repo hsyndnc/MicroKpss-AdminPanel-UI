@@ -4,7 +4,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useUsers } from "@/lib/hooks/useUsers";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
+import { DataPagination } from "@/components/shared/DataPagination";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -128,10 +128,14 @@ function UsersContent() {
         </div>
       )}
 
-      <div className="flex justify-end gap-2">
-        {page > 1 && <Button variant="outline" size="sm" onClick={() => setQueryParam("page", String(page - 1))}>← Önceki</Button>}
-        {data && data.items.length === 20 && <Button variant="outline" size="sm" onClick={() => setQueryParam("page", String(page + 1))}>Sonraki →</Button>}
-      </div>
+      {data && (
+        <DataPagination
+          page={page}
+          totalCount={data.totalCount}
+          pageSize={20}
+          onPageChange={(p) => setQueryParam("page", String(p))}
+        />
+      )}
 
       <UserDetailSheet user={selectedUser} onClose={() => setSelectedUser(null)} />
     </div>
