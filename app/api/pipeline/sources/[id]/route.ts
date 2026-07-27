@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { pipelineProxy } from "@/lib/api/pipeline-proxy";
 
 export async function DELETE(
   request: NextRequest,
@@ -6,10 +7,8 @@ export async function DELETE(
 ) {
   const { id } = await params;
   const deleteQuestions = request.nextUrl.searchParams.get("delete_questions") ?? "false";
-  const res = await fetch(
-    `${process.env.PIPELINE_URL}/sources/${encodeURIComponent(id)}?delete_questions=${deleteQuestions}`,
-    { method: "DELETE", headers: { "X-Api-Key": process.env.PIPELINE_API_KEY ?? "" } }
+  return pipelineProxy(
+    `/sources/${encodeURIComponent(id)}?delete_questions=${deleteQuestions}`,
+    { method: "DELETE" }
   );
-  const data = await res.json();
-  return NextResponse.json(data, { status: res.status });
 }
