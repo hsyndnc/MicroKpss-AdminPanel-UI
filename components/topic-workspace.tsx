@@ -1,4 +1,5 @@
 "use client";
+import axios from "axios";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,8 @@ export function TopicWorkspace({
   const [phase, setPhase] = useState<"idle" | "generating" | "done" | "error">("idle");
   const [resultCount, setResultCount] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveError, setSaveError] = useState("");
 
   useEffect(() => { getAdminCategories().then(setCategories); }, []);
 
@@ -34,9 +37,24 @@ export function TopicWorkspace({
     ...t.subtopics.map((s) => ({ id: s.id, label: `— ${s.title}` })),
   ]);
 
+  function getSaveErrorMessage(err: unknown): string {
+    if (axios.isAxiosError(err)) {
+      const msg = err.response?.data?.error;
+      if (typeof msg === "string" && msg) return msg;
+    }
+    return "Ağaç kaydedilemedi.";
+  }
+
   async function handleSaveTree() {
-    const saved = await saveTopics(sourceId, tree);
-    onTreeChange(saved);
+    try {
+      setSaveState("saving");
+      const saved = await saveTopics(sourceId, tree);
+      onTreeChange(saved);
+      setSaveState("saved");
+    } catch (err) {
+      setSaveError(getSaveErrorMessage(err));
+      setSaveState("error");
+    }
   }
 
   async function handleGenerate() {
@@ -63,8 +81,23 @@ export function TopicWorkspace({
       <h1 className="text-2xl font-bold">Konu Ağacı — {tree.file_name}</h1>
       <p className="text-gray-500 text-sm">Başlıkları düzelt, hedef kategoriyi ve üretilecek konuyu seç.</p>
 
-      <TopicTreeEditor tree={tree} onChange={onTreeChange} />
-      <Button variant="outline" onClick={handleSaveTree}>Ağacı Kaydet</Button>
+      <TopicTreeEditor tree={tree} onChange={(t) => { setSaveState("idle"); onTreeChange(t); }} />
+      <div className="space-y-2">
+        <Button variant="outline" disabled={saveState === "saving"} onClick={handleSaveTree}>
+          {saveState === "saving" ? "Kaydediliyor..." : "Ağacı Kaydet"}
+        </Button>
+        {saveState === "saved" && (
+          <div className="rounded-md bg-green-50 text-green-700 text-sm p-3">
+            ✅ Ağaç kaydedildi.{" "}
+            <button className="underline" onClick={() => router.push("/sources")}>
+              Kaynaklarda gör
+            </button>
+          </div>
+        )}
+        {saveState === "error" && (
+          <div className="rounded-md bg-red-50 text-red-700 text-sm p-3">{saveError}</div>
+        )}
+      </div>
 
       <div className="rounded-lg border p-4 space-y-3">
         <div className="space-y-1">
