@@ -1,6 +1,6 @@
 export type KpssType = "Lisans" | "Onlisans" | "Ortaogretim";
 export type UserRole = "Standard" | "Premium" | "Admin";
-export type ContentStatus = "PendingReview" | "Active" | "Rejected" | "Archived";
+export type ContentStatus = "PendingReview" | "Active" | "Rejected" | "Archived" | "FlaggedForReview";
 export type Difficulty = "Easy" | "Medium" | "Hard";
 export type QuestionType = "MultipleChoice" | "TrueFalse";
 
@@ -96,4 +96,16 @@ export interface AiFixResult {
   suggestion: AiFixSuggestion;
   changeSummary: string;
   sourceFound: boolean;
+}
+
+export type ReportReason = "WrongAnswer" | "Typo" | "Nonsense" | "Inappropriate" | "Other";
+
+export interface ReportedQuestion {
+  questionId: string;
+  body: string;
+  categoryName?: string;
+  status: ContentStatus;
+  reportCount: number;
+  reasonBreakdown: Record<string, number>;
+  notes: string[];
 }

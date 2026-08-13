@@ -6,6 +6,7 @@ const config: Record<ContentStatus, { label: string; className: string }> = {
   Active:        { label: "Aktif",      className: "bg-green-100 text-green-800 hover:bg-green-100" },
   Rejected:      { label: "Reddedildi", className: "bg-red-100 text-red-800 hover:bg-red-100" },
   Archived:      { label: "Arşiv",      className: "bg-gray-100 text-gray-800 hover:bg-gray-100" },
+  FlaggedForReview: { label: "İncelemede", className: "bg-orange-100 text-orange-800 hover:bg-orange-100" },
 };
 
 export function StatusBadge({ status }: { status: ContentStatus }) {

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, FileText, FolderOpen, Users, Calendar, Upload, Scale, LogOut, Library } from "lucide-react";
+import { LayoutDashboard, FileText, FolderOpen, Users, Calendar, Upload, Scale, LogOut, Library, Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/store/authStore";
 import { logout } from "@/lib/api/auth";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/questions", label: "Sorular", icon: FileText },
+  { href: "/reports", label: "Raporlar", icon: Flag },
   { href: "/categories", label: "Kategoriler", icon: FolderOpen },
   { href: "/users", label: "Kullanıcılar", icon: Users },
   { href: "/exam-dates", label: "Sınav Tarihleri", icon: Calendar },
