@@ -21,6 +21,86 @@ function collectLeaves(subs: TopicSubtopic[], topicTitle: string, path: string[]
   });
 }
 
+// Düğümü (çocuklarıyla) ağaçtan çıkar; bulursa döndürür (mutasyon: splice).
+function removeNode(subs: TopicSubtopic[], nodeId: string): TopicSubtopic | undefined {
+  const i = subs.findIndex((s) => s.id === nodeId);
+  if (i >= 0) return subs.splice(i, 1)[0];
+  for (const s of subs) {
+    if (s.subtopics) {
+      const r = removeNode(s.subtopics, nodeId);
+      if (r) return r;
+    }
+  }
+  return undefined;
+}
+
+// id'si parentId olan alt-başlığın subtopics'ine node ekle (recursive). Bulursa true.
+function insertUnderSubs(subs: TopicSubtopic[], parentId: string, node: TopicSubtopic): boolean {
+  for (const s of subs) {
+    if (s.id === parentId) {
+      if (!s.subtopics) s.subtopics = [];
+      s.subtopics.push(node);
+      return true;
+    }
+    if (s.subtopics && insertUnderSubs(s.subtopics, parentId, node)) return true;
+  }
+  return false;
+}
+
+// Draft üzerinde taşımayı uygular (mutasyon). newParentId null => topicId konusunun üst-düzeyine.
+function moveNodeInDraft(
+  draft: TopicTree, nodeId: string, newParentId: string | null, topicId: string
+): void {
+  let moved: TopicSubtopic | undefined;
+  for (const t of draft.topics) {
+    if (!moved) moved = removeNode(t.subtopics, nodeId);
+  }
+  if (!moved) return; // bayat öneri — düğüm yok, güvenli no-op
+  if (newParentId === null) {
+    const topic = draft.topics.find((t) => t.id === topicId) ?? draft.topics[0];
+    topic?.subtopics.push(moved);
+    return;
+  }
+  let inserted = false;
+  for (const t of draft.topics) {
+    if (insertUnderSubs(t.subtopics, newParentId, moved)) { inserted = true; break; }
+  }
+  if (!inserted) {
+    // hedef parent bulunamadı → topicId üst-düzeyine güvenli fallback (düğüm kaybolmaz)
+    const topic = draft.topics.find((t) => t.id === topicId) ?? draft.topics[0];
+    topic?.subtopics.push(moved);
+  }
+}
+
+// SAF genel taşıma: yeni ağaç döner (workspace bunu çağırır).
+export function moveNode(
+  tree: TopicTree, nodeId: string, newParentId: string | null, topicId: string
+): TopicTree {
+  const draft: TopicTree = structuredClone(tree);
+  moveNodeInDraft(draft, nodeId, newParentId, topicId);
+  return draft;
+}
+
+// Düğümün mevcut parent alt-başlık id'si; doğrudan bir konunun altındaysa null.
+function locateParent(
+  subs: TopicSubtopic[], nodeId: string, parentId: string | null
+): { found: boolean; parentId: string | null } {
+  for (const s of subs) {
+    if (s.id === nodeId) return { found: true, parentId };
+    const r = locateParent(s.subtopics ?? [], nodeId, s.id);
+    if (r.found) return r;
+  }
+  return { found: false, parentId: null };
+}
+
+export function findParentId(tree: TopicTree, nodeId: string): string | null {
+  for (const t of tree.topics) {
+    const r = locateParent(t.subtopics, nodeId, null);
+    if (r.found) return r.parentId;
+  }
+  return null;
+}
+
 export function TopicTreeEditor({ tree, onChange }: Props) {
   const allSubs = useMemo(
     () => tree.topics.flatMap((t) => collectLeaves(t.subtopics, t.title, [])),
@@ -40,14 +120,6 @@ export function TopicTreeEditor({ tree, onChange }: Props) {
       if (s.subtopics && renameIn(s.subtopics, sid, title)) return true;
     }
     return false;
-  }
-  function removeIn(subs: TopicSubtopic[], sid: string): TopicSubtopic | undefined {
-    const i = subs.findIndex((s) => s.id === sid);
-    if (i >= 0) return subs.splice(i, 1)[0];
-    for (const s of subs) {
-      if (s.subtopics) { const r = removeIn(s.subtopics, sid); if (r) return r; }
-    }
-    return undefined;
   }
   function stripChunk(subs: TopicSubtopic[], cid: string) {
     for (const s of subs) {
@@ -70,7 +142,7 @@ export function TopicTreeEditor({ tree, onChange }: Props) {
     update((d) => d.topics.forEach((t) => renameIn(t.subtopics, sid, title)));
   }
   function deleteSub(sid: string) {
-    update((d) => d.topics.forEach((t) => removeIn(t.subtopics, sid)));
+    update((d) => d.topics.forEach((t) => removeNode(t.subtopics, sid)));
   }
   function addSub(tid: string) {
     update((d) => {
@@ -79,12 +151,7 @@ export function TopicTreeEditor({ tree, onChange }: Props) {
     });
   }
   function moveSubToTopic(sid: string, destTopicId: string) {
-    update((d) => {
-      let moved: TopicSubtopic | undefined;
-      d.topics.forEach((t) => { if (!moved) moved = removeIn(t.subtopics, sid); });
-      const dest = d.topics.find((t) => t.id === destTopicId);
-      if (moved && dest) dest.subtopics.push(moved);
-    });
+    update((d) => moveNodeInDraft(d, sid, null, destTopicId));
   }
   function moveChunk(chunkId: string, destSubId: string) {
     update((d) => {
