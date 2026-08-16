@@ -8,6 +8,7 @@ export interface TopicSubtopic {
   id: string;
   title: string;
   chunk_ids: string[];
+  subtopics?: TopicSubtopic[];   // gruplama (parent) düğümleri çocuk taşır; yaprak taşımaz
 }
 export interface Topic {
   id: string;

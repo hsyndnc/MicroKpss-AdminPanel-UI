@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAdminCategories } from "@/lib/api/categories";
-import { saveTopics, generateFromTopic, type TopicTree } from "@/lib/api/pipeline";
+import { saveTopics, generateFromTopic, type TopicTree, type TopicSubtopic } from "@/lib/api/pipeline";
 import { TopicTreeEditor } from "@/components/topic-tree-editor";
 import type { AdminCategory } from "@/lib/types";
 
@@ -32,9 +32,16 @@ export function TopicWorkspace({
   const dersler = categories.filter((c) => c.parentCategoryId && rootIds.has(c.parentCategoryId));
   const konular = categories.filter((c) => c.parentCategoryId === selectedDersId);
 
+  // Parent (gruplama) + tüm çocuklar seçilebilir; girinti derinliği gösterir.
+  // Parent seçilince backend where=parent_id ile tüm çocukların içeriğini çeker.
+  const flattenSubs = (subs: TopicSubtopic[], depth: number): { id: string; label: string }[] =>
+    subs.flatMap((s) => [
+      { id: s.id, label: `${"— ".repeat(depth)}${s.title}` },
+      ...flattenSubs(s.subtopics ?? [], depth + 1),
+    ]);
   const nodeOptions = tree.topics.flatMap((t) => [
     { id: t.id, label: t.title },
-    ...t.subtopics.map((s) => ({ id: s.id, label: `— ${s.title}` })),
+    ...flattenSubs(t.subtopics, 1),
   ]);
 
   function getSaveErrorMessage(err: unknown): string {
