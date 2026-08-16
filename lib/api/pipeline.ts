@@ -15,11 +15,20 @@ export interface Topic {
   title: string;
   subtopics: TopicSubtopic[];
 }
+export interface Suggestion {
+  node_id: string;              // taşınacak düğümün id'si
+  node_title: string;           // düğümün başlığı
+  new_parent_id: string | null; // hedef parent id; null => konu üst-düzeyine terfi
+  new_parent_title: string | null;
+  topic_id: string;             // düğümün ait olduğu taksonomi konusunun id'si
+  reason: string;               // LLM gerekçesi (kısa)
+}
 export interface TopicTree {
   source_id: string;
   file_name: string;
   topics: Topic[];
   previews?: Record<string, string>;
+  suggestions?: Suggestion[];
 }
 
 export interface PipelineUploadResponse {
@@ -62,6 +71,13 @@ export async function getTopics(sourceId: string): Promise<TopicTree> {
 export async function saveTopics(sourceId: string, tree: TopicTree): Promise<TopicTree> {
   const { data } = await pipelineClient.put<{ topics: TopicTree }>(
     `/sources/${sourceId}/topics`, tree
+  );
+  return data.topics;
+}
+
+export async function reviewTopics(sourceId: string): Promise<TopicTree> {
+  const { data } = await pipelineClient.post<{ topics: TopicTree }>(
+    `/sources/${sourceId}/review`
   );
   return data.topics;
 }
