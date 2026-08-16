@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { getAdminQuestionById, updateQuestion, approveQuestion, rejectQuestion } from "@/lib/api/questions";
 import { questionSchema, type QuestionInput } from "@/lib/validations/questionSchema";
 import { useCategories } from "@/lib/hooks/useCategories";
+import { useReports } from "@/lib/hooks/useReports";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { VerificationBadge } from "@/components/shared/VerificationBadge";
 import { CategoryCascadeSelect } from "@/components/shared/CategoryCascadeSelect";
@@ -18,8 +19,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Flag } from "lucide-react";
 import { toast } from "sonner";
-import type { ContentStatus, AiFixSuggestion } from "@/lib/types";
+import { REASON_LABELS } from "@/lib/constants";
+import type { ContentStatus, AiFixSuggestion, ReportReason } from "@/lib/types";
 
 export default function QuestionDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -34,6 +38,10 @@ export default function QuestionDetailPage() {
   });
 
   const { data: categories = [] } = useCategories();
+
+  const isFlagged = question?.status === "FlaggedForReview";
+  const { data: reports = [] } = useReports({ enabled: isFlagged });
+  const report = reports.find((r) => r.questionId === id);
 
   const form = useForm<QuestionInput>({
     resolver: zodResolver(questionSchema),
@@ -104,6 +112,7 @@ export default function QuestionDetailPage() {
 
   const watchedOptions = form.watch("options");
   const hasContext =
+    !!report ||
     !!question.sourceText ||
     (question.verificationStatus === "supheli" && !!question.verificationNote);
 
@@ -231,6 +240,48 @@ export default function QuestionDetailPage() {
 
       {hasContext && (
         <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+          {report && (
+            <Card className="border-orange-300 bg-orange-50">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base text-orange-800">
+                  <Flag className="h-4 w-4" />
+                  Kullanıcı Raporları
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-0 text-sm text-orange-900">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-orange-600 text-xl font-bold text-white">
+                    {report.reportCount}
+                  </span>
+                  <div>
+                    <div className="font-medium">rapor · İncelemede</div>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {Object.entries(report.reasonBreakdown).map(([reason, count]) => (
+                        <Badge key={reason} variant="secondary" className="text-xs">
+                          {(REASON_LABELS[reason as ReportReason] ?? reason)} ×{count}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                {report.notes.length > 0 && (
+                  <div className="space-y-2 border-t border-orange-200 pt-3">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-orange-700">
+                      Notlar ({report.notes.length})
+                    </div>
+                    {report.notes.map((n, i) => (
+                      <blockquote
+                        key={i}
+                        className="rounded-md border-l-2 border-orange-400 bg-white/70 px-3 py-2 text-orange-900"
+                      >
+                        {n}
+                      </blockquote>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
           {question.verificationStatus === "supheli" && question.verificationNote && (
             <Card className="border-amber-300 bg-amber-50">
               <CardHeader><CardTitle className="text-base text-amber-800">AI doğrulama notu</CardTitle></CardHeader>

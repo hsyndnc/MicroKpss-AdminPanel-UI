@@ -13,15 +13,8 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useReports } from "@/lib/hooks/useReports";
 import { dismissReport } from "@/lib/api/reports";
 import { approveQuestion, rejectQuestion } from "@/lib/api/questions";
+import { REASON_LABELS } from "@/lib/constants";
 import type { ReportReason } from "@/lib/types";
-
-const REASON_LABELS: Record<ReportReason, string> = {
-  WrongAnswer: "Yanlış cevap",
-  Typo: "Yazım",
-  Nonsense: "Anlamsız",
-  Inappropriate: "Uygunsuz",
-  Other: "Diğer",
-};
 
 export default function ReportsPage() {
   const router = useRouter();
