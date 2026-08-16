@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAdminCategories } from "@/lib/api/categories";
-import { saveTopics, generateFromTopic, type TopicTree, type TopicSubtopic } from "@/lib/api/pipeline";
-import { TopicTreeEditor } from "@/components/topic-tree-editor";
+import { saveTopics, generateFromTopic, reviewTopics, type TopicTree, type TopicSubtopic, type Suggestion } from "@/lib/api/pipeline";
+import { TopicTreeEditor, moveNode } from "@/components/topic-tree-editor";
+import { TopicSuggestions } from "@/components/topic-suggestions";
 import type { AdminCategory } from "@/lib/types";
 
 export function TopicWorkspace({
@@ -25,6 +26,8 @@ export function TopicWorkspace({
   const [errorMsg, setErrorMsg] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState("");
+  const [reviewState, setReviewState] = useState<"idle" | "loading" | "error">("idle");
+  const [reviewError, setReviewError] = useState("");
 
   useEffect(() => { getAdminCategories().then(setCategories); }, []);
 
@@ -44,12 +47,12 @@ export function TopicWorkspace({
     ...flattenSubs(t.subtopics, 1),
   ]);
 
-  function getSaveErrorMessage(err: unknown): string {
+  function getPipelineErrorMessage(err: unknown, fallback: string): string {
     if (axios.isAxiosError(err)) {
       const msg = err.response?.data?.error;
       if (typeof msg === "string" && msg) return msg;
     }
-    return "Ağaç kaydedilemedi.";
+    return fallback;
   }
 
   async function handleSaveTree() {
@@ -59,9 +62,32 @@ export function TopicWorkspace({
       onTreeChange(saved);
       setSaveState("saved");
     } catch (err) {
-      setSaveError(getSaveErrorMessage(err));
+      setSaveError(getPipelineErrorMessage(err, "Ağaç kaydedilemedi."));
       setSaveState("error");
     }
+  }
+
+  async function handleReview() {
+    try {
+      setReviewState("loading");
+      const reviewed = await reviewTopics(sourceId);
+      onTreeChange(reviewed);
+      setReviewState("idle");
+    } catch (err) {
+      setReviewError(getPipelineErrorMessage(err, "Öneriler alınamadı."));
+      setReviewState("error");
+    }
+  }
+
+  function handleApplySuggestion(s: Suggestion) {
+    const next = moveNode(tree, s.node_id, s.new_parent_id, s.topic_id);
+    next.suggestions = (tree.suggestions ?? []).filter((x) => x !== s);
+    setSaveState("idle"); // ağaç değişti → kaydet banner'ını sıfırla
+    onTreeChange(next);
+  }
+
+  function handleDismissSuggestion(s: Suggestion) {
+    onTreeChange({ ...tree, suggestions: (tree.suggestions ?? []).filter((x) => x !== s) });
   }
 
   async function handleGenerate() {
@@ -90,9 +116,16 @@ export function TopicWorkspace({
 
       <TopicTreeEditor tree={tree} onChange={(t) => { setSaveState("idle"); onTreeChange(t); }} />
       <div className="space-y-2">
-        <Button variant="outline" disabled={saveState === "saving"} onClick={handleSaveTree}>
-          {saveState === "saving" ? "Kaydediliyor..." : "Ağacı Kaydet"}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" disabled={saveState === "saving"} onClick={handleSaveTree}>
+            {saveState === "saving" ? "Kaydediliyor..." : "Ağacı Kaydet"}
+          </Button>
+          <Button variant="outline" disabled={reviewState === "loading"} onClick={handleReview}>
+            {reviewState === "loading"
+              ? "Öneriler alınıyor..."
+              : (tree.suggestions?.length ? "Önerileri Yenile" : "Önerileri Getir")}
+          </Button>
+        </div>
         {saveState === "saved" && (
           <div className="rounded-md bg-green-50 text-green-700 text-sm p-3">
             ✅ Ağaç kaydedildi.{" "}
@@ -104,7 +137,17 @@ export function TopicWorkspace({
         {saveState === "error" && (
           <div className="rounded-md bg-red-50 text-red-700 text-sm p-3">{saveError}</div>
         )}
+        {reviewState === "error" && (
+          <div className="rounded-md bg-red-50 text-red-700 text-sm p-3">{reviewError}</div>
+        )}
       </div>
+
+      <TopicSuggestions
+        tree={tree}
+        suggestions={tree.suggestions ?? []}
+        onApply={handleApplySuggestion}
+        onDismiss={handleDismissSuggestion}
+      />
 
       <div className="rounded-lg border p-4 space-y-3">
         <div className="space-y-1">
