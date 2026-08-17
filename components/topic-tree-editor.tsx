@@ -1,15 +1,18 @@
 "use client";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import type { TopicTree, Topic, TopicSubtopic } from "@/lib/api/pipeline";
+import type { TopicTree, Topic, TopicSubtopic, Suggestion } from "@/lib/api/pipeline";
 
 interface Props {
   tree: TopicTree;
   onChange: (t: TopicTree) => void;
+  suggestions?: Suggestion[];
+  onApplySuggestion?: (s: Suggestion) => void;
+  onDismissSuggestion?: (s: Suggestion) => void;
 }
 
 // Bir alt-ağaçtaki tüm YAPRAK alt başlıklar (chunk taşıma hedefleri). Parent'lara chunk konmaz.
@@ -101,11 +104,55 @@ export function findParentId(tree: TopicTree, nodeId: string): string | null {
   return null;
 }
 
-export function TopicTreeEditor({ tree, onChange }: Props) {
+// id -> başlık haritası (konular + tüm alt başlıklar, herhangi derinlik).
+function buildTitleMap(tree: TopicTree): Map<string, string> {
+  const map = new Map<string, string>();
+  const walk = (subs: TopicSubtopic[]) => {
+    for (const s of subs) {
+      map.set(s.id, s.title);
+      walk(s.subtopics ?? []);
+    }
+  };
+  for (const t of tree.topics) {
+    map.set(t.id, t.title);
+    walk(t.subtopics);
+  }
+  return map;
+}
+
+// §5: "olduğu yere taşı" (etkisiz) veya "zaten üst-düzeyde" önerileri gizle.
+function isNoop(tree: TopicTree, s: Suggestion): boolean {
+  const current = findParentId(tree, s.node_id);
+  if (s.new_parent_id !== null && s.new_parent_id === current) return true;
+  if (s.new_parent_id === null && current === null) return true;
+  return false;
+}
+
+export function TopicTreeEditor({
+  tree, onChange, suggestions = [], onApplySuggestion, onDismissSuggestion,
+}: Props) {
   const allSubs = useMemo(
     () => tree.topics.flatMap((t) => collectLeaves(t.subtopics, t.title, [])),
     [tree]
   );
+
+  // node_id -> görünür (no-op olmayan) öneri; rozet bu düğümlerde çıkar.
+  const titleMap = useMemo(() => buildTitleMap(tree), [tree]);
+  const suggestionByNode = useMemo(() => {
+    const map = new Map<string, Suggestion>();
+    for (const s of suggestions) {
+      if (!isNoop(tree, s) && !map.has(s.node_id)) map.set(s.node_id, s);
+    }
+    return map;
+  }, [tree, suggestions]);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  function toggleExpanded(nodeId: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) next.delete(nodeId); else next.add(nodeId);
+      return next;
+    });
+  }
 
   function update(mut: (draft: TopicTree) => void) {
     const draft: TopicTree = structuredClone(tree);
@@ -163,6 +210,21 @@ export function TopicTreeEditor({ tree, onChange }: Props) {
   function renderSub(sub: TopicSubtopic, depth: number) {
     const kids = sub.subtopics ?? [];
     const isParent = kids.length > 0;
+    const sug = suggestionByNode.get(sub.id);
+    const currentParentId = sug ? findParentId(tree, sub.id) : null;
+    const currentLabel = currentParentId
+      ? (titleMap.get(currentParentId) ?? currentParentId)
+      : "konu üst-düzeyi";
+    const targetLabel = sug
+      ? (sug.new_parent_id === null
+          ? "⬆ konu üst-düzeyine (terfi)"
+          : (titleMap.get(sug.new_parent_id) ?? sug.new_parent_title ?? sug.new_parent_id))
+      : "";
+    const badgeLabel = sug
+      ? (sug.new_parent_id === null
+          ? "üst-düzey"
+          : (titleMap.get(sug.new_parent_id) ?? sug.new_parent_title ?? "hedef"))
+      : "";
     return (
       <div key={sub.id} className="rounded-md border bg-gray-50 p-2 space-y-1"
            style={{ marginLeft: depth * 14 }}>
@@ -172,6 +234,16 @@ export function TopicTreeEditor({ tree, onChange }: Props) {
           <span className="text-xs text-gray-500 whitespace-nowrap">
             {isParent ? `${kids.length} alt başlık` : `${sub.chunk_ids.length} chunk`}
           </span>
+          {sug && (
+            <button
+              type="button"
+              onClick={() => toggleExpanded(sub.id)}
+              title="Ağaç önerisi — ayrıntı için tıkla"
+              className="whitespace-nowrap rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-xs text-amber-800 hover:bg-amber-200"
+            >
+              💡 → {badgeLabel}
+            </button>
+          )}
           <Select
             items={tree.topics.map((t) => ({ value: t.id, label: t.title }))}
             onValueChange={(v) => moveSubToTopic(sub.id, v as string)}
@@ -183,6 +255,18 @@ export function TopicTreeEditor({ tree, onChange }: Props) {
           </Select>
           <Button variant="outline" size="sm" onClick={() => deleteSub(sub.id)}>Sil</Button>
         </div>
+        {sug && expanded.has(sub.id) && (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs space-y-1">
+            <div className="text-gray-700">
+              şu an: {currentLabel} <span className="mx-1">→</span> {targetLabel}
+            </div>
+            <div className="italic text-gray-500">{sug.reason}</div>
+            <div className="flex gap-2 pt-1">
+              <Button size="sm" onClick={() => onApplySuggestion?.(sug)}>Uygula</Button>
+              <Button size="sm" variant="outline" onClick={() => onDismissSuggestion?.(sug)}>Yoksay</Button>
+            </div>
+          </div>
+        )}
         {!isParent && tree.previews && sub.chunk_ids.length > 0 && (
           <details className="text-xs">
             <summary className="cursor-pointer text-gray-500">Parçalar</summary>

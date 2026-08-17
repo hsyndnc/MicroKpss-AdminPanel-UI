@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  uploadPdfToPipeline, getPipelineJob, listSources,
+  uploadPdfToPipeline, getPipelineJob, listSources, reviewTopics,
   type TopicTree, type SourceSummary,
 } from "@/lib/api/pipeline";
 import { TopicWorkspace } from "@/components/topic-workspace";
@@ -35,6 +35,9 @@ export default function ContentPage() {
           setSourceId(job.source_id);
           setTree(job.topics);
           setStep("edit");
+          // Ağaç üretildi → önerileri otomatik getir (best-effort; hata olursa
+          // sessiz, kullanıcı workspace'teki "Önerileri Getir" ile deneyebilir).
+          reviewTopics(job.source_id).then(setTree).catch(() => {});
         } else if (job.status === "error") {
           clearInterval(pollRef.current!);
           setErrorMsg(job.error ?? "Bilinmeyen hata");

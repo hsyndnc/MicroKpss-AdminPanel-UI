@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getAdminCategories } from "@/lib/api/categories";
 import { saveTopics, generateFromTopic, reviewTopics, type TopicTree, type TopicSubtopic, type Suggestion } from "@/lib/api/pipeline";
 import { TopicTreeEditor, moveNode } from "@/components/topic-tree-editor";
-import { TopicSuggestions } from "@/components/topic-suggestions";
 import type { AdminCategory } from "@/lib/types";
 
 export function TopicWorkspace({
@@ -114,7 +113,13 @@ export function TopicWorkspace({
       <h1 className="text-2xl font-bold">Konu Ağacı — {tree.file_name}</h1>
       <p className="text-gray-500 text-sm">Başlıkları düzelt, hedef kategoriyi ve üretilecek konuyu seç.</p>
 
-      <TopicTreeEditor tree={tree} onChange={(t) => { setSaveState("idle"); onTreeChange(t); }} />
+      <TopicTreeEditor
+        tree={tree}
+        onChange={(t) => { setSaveState("idle"); onTreeChange(t); }}
+        suggestions={tree.suggestions ?? []}
+        onApplySuggestion={handleApplySuggestion}
+        onDismissSuggestion={handleDismissSuggestion}
+      />
       <div className="space-y-2">
         <div className="flex gap-2">
           <Button variant="outline" disabled={saveState === "saving"} onClick={handleSaveTree}>
@@ -141,13 +146,6 @@ export function TopicWorkspace({
           <div className="rounded-md bg-red-50 text-red-700 text-sm p-3">{reviewError}</div>
         )}
       </div>
-
-      <TopicSuggestions
-        tree={tree}
-        suggestions={tree.suggestions ?? []}
-        onApply={handleApplySuggestion}
-        onDismiss={handleDismissSuggestion}
-      />
 
       <div className="rounded-lg border p-4 space-y-3">
         <div className="space-y-1">
