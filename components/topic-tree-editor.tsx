@@ -1,18 +1,19 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import type { TopicTree, Topic, TopicSubtopic, Suggestion } from "@/lib/api/pipeline";
 
 interface Props {
   tree: TopicTree;
   onChange: (t: TopicTree) => void;
   suggestions?: Suggestion[];
-  onApplySuggestion?: (s: Suggestion) => void;
-  onDismissSuggestion?: (s: Suggestion) => void;
+  selectedNodeId?: string | null;
+  onSelectSuggestion?: (nodeId: string) => void;
 }
 
 // Bir alt-ağaçtaki tüm YAPRAK alt başlıklar (chunk taşıma hedefleri). Parent'lara chunk konmaz.
@@ -105,7 +106,7 @@ export function findParentId(tree: TopicTree, nodeId: string): string | null {
 }
 
 // id -> başlık haritası (konular + tüm alt başlıklar, herhangi derinlik).
-function buildTitleMap(tree: TopicTree): Map<string, string> {
+export function buildTitleMap(tree: TopicTree): Map<string, string> {
   const map = new Map<string, string>();
   const walk = (subs: TopicSubtopic[]) => {
     for (const s of subs) {
@@ -121,15 +122,37 @@ function buildTitleMap(tree: TopicTree): Map<string, string> {
 }
 
 // §5: "olduğu yere taşı" (etkisiz) veya "zaten üst-düzeyde" önerileri gizle.
-function isNoop(tree: TopicTree, s: Suggestion): boolean {
+export function isNoop(tree: TopicTree, s: Suggestion): boolean {
   const current = findParentId(tree, s.node_id);
   if (s.new_parent_id !== null && s.new_parent_id === current) return true;
   if (s.new_parent_id === null && current === null) return true;
   return false;
 }
 
+// Görünür (no-op olmayan) öneriler — panel + editör aynı listeyi kullanır.
+export function visibleSuggestions(tree: TopicTree, suggestions: Suggestion[]): Suggestion[] {
+  return suggestions.filter((s) => !isNoop(tree, s));
+}
+
+// id'li alt-başlığı bul (herhangi derinlik).
+export function findNode(tree: TopicTree, id: string): TopicSubtopic | undefined {
+  const walk = (subs: TopicSubtopic[]): TopicSubtopic | undefined => {
+    for (const s of subs) {
+      if (s.id === id) return s;
+      const r = walk(s.subtopics ?? []);
+      if (r) return r;
+    }
+    return undefined;
+  };
+  for (const t of tree.topics) {
+    const r = walk(t.subtopics);
+    if (r) return r;
+  }
+  return undefined;
+}
+
 export function TopicTreeEditor({
-  tree, onChange, suggestions = [], onApplySuggestion, onDismissSuggestion,
+  tree, onChange, suggestions = [], selectedNodeId = null, onSelectSuggestion,
 }: Props) {
   const allSubs = useMemo(
     () => tree.topics.flatMap((t) => collectLeaves(t.subtopics, t.title, [])),
@@ -137,7 +160,6 @@ export function TopicTreeEditor({
   );
 
   // node_id -> görünür (no-op olmayan) öneri; rozet bu düğümlerde çıkar.
-  const titleMap = useMemo(() => buildTitleMap(tree), [tree]);
   const suggestionByNode = useMemo(() => {
     const map = new Map<string, Suggestion>();
     for (const s of suggestions) {
@@ -145,14 +167,8 @@ export function TopicTreeEditor({
     }
     return map;
   }, [tree, suggestions]);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  function toggleExpanded(nodeId: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(nodeId)) next.delete(nodeId); else next.add(nodeId);
-      return next;
-    });
-  }
+  const selectedSug = selectedNodeId ? suggestionByNode.get(selectedNodeId) : undefined;
+  const targetId = selectedSug ? selectedSug.new_parent_id : null; // vurgulanacak hedef dal
 
   function update(mut: (draft: TopicTree) => void) {
     const draft: TopicTree = structuredClone(tree);
@@ -207,69 +223,66 @@ export function TopicTreeEditor({
     });
   }
 
-  function renderSub(sub: TopicSubtopic, depth: number) {
+  // Tek düğüm satırı + (yaprak ise) parçalar + (dal ise) çizgili çocuk konteyneri.
+  function renderNode(sub: TopicSubtopic) {
     const kids = sub.subtopics ?? [];
     const isParent = kids.length > 0;
     const sug = suggestionByNode.get(sub.id);
-    const currentParentId = sug ? findParentId(tree, sub.id) : null;
-    const currentLabel = currentParentId
-      ? (titleMap.get(currentParentId) ?? currentParentId)
-      : "konu üst-düzeyi";
-    const targetLabel = sug
-      ? (sug.new_parent_id === null
-          ? "⬆ konu üst-düzeyine (terfi)"
-          : (titleMap.get(sug.new_parent_id) ?? sug.new_parent_title ?? sug.new_parent_id))
-      : "";
-    const badgeLabel = sug
-      ? (sug.new_parent_id === null
-          ? "üst-düzey"
-          : (titleMap.get(sug.new_parent_id) ?? sug.new_parent_title ?? "hedef"))
-      : "";
+    const isSource = sub.id === selectedNodeId && !!sug;
+    const isTarget = !!targetId && sub.id === targetId;
     return (
-      <div key={sub.id} className="rounded-md border bg-gray-50 p-2 space-y-1"
-           style={{ marginLeft: depth * 14 }}>
-        <div className="flex items-center gap-2">
-          <Input value={sub.title} onChange={(e) => renameSub(sub.id, e.target.value)}
-                 className={isParent ? "font-medium" : ""} />
-          <span className="text-xs text-gray-500 whitespace-nowrap">
-            {isParent ? `${kids.length} alt başlık` : `${sub.chunk_ids.length} chunk`}
+      <>
+        <div className={cn(
+          "group flex items-center gap-2 rounded-md px-1 py-0.5",
+          isSource && "bg-blue-50 ring-2 ring-blue-400",
+          isTarget && "bg-green-50 ring-2 ring-green-400",
+        )}>
+          <span className="shrink-0 text-sm" title={isParent ? "dal" : "yaprak"}>
+            {isParent ? "📁" : "📄"}
           </span>
+          <Input value={sub.title} onChange={(e) => renameSub(sub.id, e.target.value)}
+                 className={cn("h-7", isParent && "font-medium")} />
+          <span className="whitespace-nowrap text-xs text-gray-400">
+            {isParent ? `${kids.length} alt başlık` : `${sub.chunk_ids.length} parça`}
+          </span>
+          {isTarget && (
+            <span className="shrink-0 whitespace-nowrap rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">
+              buraya
+            </span>
+          )}
           {sug && (
             <button
               type="button"
-              onClick={() => toggleExpanded(sub.id)}
-              title="Ağaç önerisi — ayrıntı için tıkla"
-              className="whitespace-nowrap rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-xs text-amber-800 hover:bg-amber-200"
+              onClick={() => onSelectSuggestion?.(sub.id)}
+              title="Taşıma önerisi — önizle"
+              className={cn(
+                "shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-xs",
+                isSource
+                  ? "border-blue-400 bg-blue-100 text-blue-800"
+                  : "border-amber-300 bg-amber-100 text-amber-800 hover:bg-amber-200",
+              )}
             >
-              💡 → {badgeLabel}
+              💡 öneri
             </button>
           )}
-          <Select
-            items={tree.topics.map((t) => ({ value: t.id, label: t.title }))}
-            onValueChange={(v) => moveSubToTopic(sub.id, v as string)}
-          >
-            <SelectTrigger className="w-32"><SelectValue placeholder="Taşı →" /></SelectTrigger>
-            <SelectContent>
-              {tree.topics.map((t) => (<SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>))}
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="sm" onClick={() => deleteSub(sub.id)}>Sil</Button>
-        </div>
-        {sug && expanded.has(sub.id) && (
-          <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs space-y-1">
-            <div className="text-gray-700">
-              şu an: {currentLabel} <span className="mx-1">→</span> {targetLabel}
-            </div>
-            <div className="italic text-gray-500">{sug.reason}</div>
-            <div className="flex gap-2 pt-1">
-              <Button size="sm" onClick={() => onApplySuggestion?.(sug)}>Uygula</Button>
-              <Button size="sm" variant="outline" onClick={() => onDismissSuggestion?.(sug)}>Yoksay</Button>
-            </div>
+          <div className="flex shrink-0 items-center gap-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+            <Select
+              items={tree.topics.map((t) => ({ value: t.id, label: t.title }))}
+              onValueChange={(v) => moveSubToTopic(sub.id, v as string)}
+            >
+              <SelectTrigger className="h-7 w-24"><SelectValue placeholder="Taşı →" /></SelectTrigger>
+              <SelectContent>
+                {tree.topics.map((t) => (<SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>))}
+              </SelectContent>
+            </Select>
+            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-red-500"
+                    onClick={() => deleteSub(sub.id)}>×</Button>
           </div>
-        )}
+        </div>
+
         {!isParent && tree.previews && sub.chunk_ids.length > 0 && (
-          <details className="text-xs">
-            <summary className="cursor-pointer text-gray-500">Parçalar</summary>
+          <details className="ml-6 text-xs">
+            <summary className="cursor-pointer text-gray-400">Parçalar</summary>
             <div className="mt-1 space-y-1">
               {sub.chunk_ids.map((cid) => (
                 <div key={cid} className="flex items-center gap-2">
@@ -278,7 +291,7 @@ export function TopicTreeEditor({
                   </span>
                   <Select items={allSubs.map((s) => ({ value: s.id, label: s.label }))}
                           onValueChange={(v) => moveChunk(cid, v as string)}>
-                    <SelectTrigger className="w-40"><SelectValue placeholder="Taşı →" /></SelectTrigger>
+                    <SelectTrigger className="h-7 w-40"><SelectValue placeholder="Taşı →" /></SelectTrigger>
                     <SelectContent>
                       {allSubs.map((s) => (<SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>))}
                     </SelectContent>
@@ -288,7 +301,26 @@ export function TopicTreeEditor({
             </div>
           </details>
         )}
-        {isParent && kids.map((c) => renderSub(c, depth + 1))}
+
+        {isParent && renderChildren(kids)}
+      </>
+    );
+  }
+
+  // Çocukları bağlantı çizgileriyle sar: dikey omurga (son çocukta yarım) + yatay tik.
+  function renderChildren(kids: TopicSubtopic[]) {
+    return (
+      <div>
+        {kids.map((k, idx) => {
+          const last = idx === kids.length - 1;
+          return (
+            <div key={k.id} className="relative pl-5">
+              <span className={cn("absolute left-1.5 top-0 w-px bg-gray-300", last ? "h-[18px]" : "h-full")} />
+              <span className="absolute left-1.5 top-[18px] h-px w-3 bg-gray-300" />
+              {renderNode(k)}
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -296,14 +328,19 @@ export function TopicTreeEditor({
   return (
     <div className="space-y-4">
       {tree.topics.map((topic: Topic) => (
-        <div key={topic.id} className="rounded-lg border p-3 space-y-2">
-          <Input
-            value={topic.title}
-            onChange={(e) => renameTopic(topic.id, e.target.value)}
-            className="font-semibold"
-          />
-          {topic.subtopics.map((sub) => renderSub(sub, 0))}
-          <Button variant="ghost" size="sm" onClick={() => addSub(topic.id)}>+ Alt başlık ekle</Button>
+        <div key={topic.id} className="rounded-lg border p-3 space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 text-sm" title="konu">📚</span>
+            <Input
+              value={topic.title}
+              onChange={(e) => renameTopic(topic.id, e.target.value)}
+              className="h-8 font-semibold"
+            />
+          </div>
+          {renderChildren(topic.subtopics)}
+          <Button variant="ghost" size="sm" className="ml-5" onClick={() => addSub(topic.id)}>
+            + Alt başlık ekle
+          </Button>
         </div>
       ))}
     </div>

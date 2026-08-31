@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAdminCategories } from "@/lib/api/categories";
 import { saveTopics, generateFromTopic, reviewTopics, type TopicTree, type TopicSubtopic, type Suggestion } from "@/lib/api/pipeline";
-import { TopicTreeEditor, moveNode } from "@/components/topic-tree-editor";
+import { TopicTreeEditor, moveNode, visibleSuggestions } from "@/components/topic-tree-editor";
+import { SuggestionPreview } from "@/components/suggestion-preview";
 import type { AdminCategory } from "@/lib/types";
 
 export function TopicWorkspace({
@@ -27,8 +28,16 @@ export function TopicWorkspace({
   const [saveError, setSaveError] = useState("");
   const [reviewState, setReviewState] = useState<"idle" | "loading" | "error">("idle");
   const [reviewError, setReviewError] = useState("");
+  const [selectedSugNodeId, setSelectedSugNodeId] = useState<string | null>(null);
 
   useEffect(() => { getAdminCategories().then(setCategories); }, []);
+
+  // Görünür öneriler + etkin seçim (seçili öneri listeden düşerse ilkine döner).
+  const visibleSugs = visibleSuggestions(tree, tree.suggestions ?? []);
+  const effectiveSelectedSug =
+    selectedSugNodeId && visibleSugs.some((s) => s.node_id === selectedSugNodeId)
+      ? selectedSugNodeId
+      : (visibleSugs[0]?.node_id ?? null);
 
   const rootIds = new Set(categories.filter((c) => !c.parentCategoryId).map((c) => c.id));
   const dersler = categories.filter((c) => c.parentCategoryId && rootIds.has(c.parentCategoryId));
@@ -109,17 +118,10 @@ export function TopicWorkspace({
   }
 
   return (
-    <div className="max-w-2xl mx-auto py-10 space-y-6">
+    <div className="max-w-6xl mx-auto py-10 space-y-6">
       <h1 className="text-2xl font-bold">Konu Ağacı — {tree.file_name}</h1>
       <p className="text-gray-500 text-sm">Başlıkları düzelt, hedef kategoriyi ve üretilecek konuyu seç.</p>
 
-      <TopicTreeEditor
-        tree={tree}
-        onChange={(t) => { setSaveState("idle"); onTreeChange(t); }}
-        suggestions={tree.suggestions ?? []}
-        onApplySuggestion={handleApplySuggestion}
-        onDismissSuggestion={handleDismissSuggestion}
-      />
       <div className="space-y-2">
         <div className="flex gap-2">
           <Button variant="outline" disabled={saveState === "saving"} onClick={handleSaveTree}>
@@ -147,7 +149,29 @@ export function TopicWorkspace({
         )}
       </div>
 
-      <div className="rounded-lg border p-4 space-y-3">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <TopicTreeEditor
+          tree={tree}
+          onChange={(t) => { setSaveState("idle"); onTreeChange(t); }}
+          suggestions={tree.suggestions ?? []}
+          selectedNodeId={effectiveSelectedSug}
+          onSelectSuggestion={setSelectedSugNodeId}
+        />
+        {visibleSugs.length > 0 && (
+          <div className="lg:sticky lg:top-6 lg:self-start">
+            <SuggestionPreview
+              tree={tree}
+              suggestions={tree.suggestions ?? []}
+              selectedNodeId={effectiveSelectedSug}
+              onSelect={setSelectedSugNodeId}
+              onApply={handleApplySuggestion}
+              onDismiss={handleDismissSuggestion}
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="max-w-2xl rounded-lg border p-4 space-y-3">
         <div className="space-y-1">
           <Label>Ders (kayıt hedefi)</Label>
           <Select items={dersler.map((d) => ({ value: d.id, label: d.name }))}
