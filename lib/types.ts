@@ -60,6 +60,7 @@ export interface AdminStats {
   totalUsers: number;
   activeQuestions: number;
   pendingReview: number;
+  rejectedQuestions: number;
   dailyActiveUsers: number;
   dailyAnswers: { date: string; count: number }[];
   categoryDistribution: { categoryName: string; count: number }[];

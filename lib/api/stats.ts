@@ -16,6 +16,7 @@ export async function getAdminStats(): Promise<AdminStats> {
     totalUsers: data.totalUsers,
     activeQuestions: data.totalQuestions.active,
     pendingReview: data.totalQuestions.pendingReview,
+    rejectedQuestions: data.totalQuestions.rejected,
     dailyActiveUsers: data.dailyActiveUsers,
     categoryDistribution: data.questionsByCategory,
     dailyAnswers: data.answersLast7Days,
