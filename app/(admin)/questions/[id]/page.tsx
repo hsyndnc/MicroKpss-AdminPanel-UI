@@ -188,11 +188,11 @@ export default function QuestionDetailPage() {
             <CardHeader><CardTitle className="text-base">Şıklar</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               {fields.map((f, i) => (
-                <div key={f.id} className="flex gap-2 items-center">
-                  <span className="text-sm font-medium w-6 text-gray-500">{String.fromCharCode(65 + i)}.</span>
-                  <Input {...form.register(`options.${i}`)} />
+                <div key={f.id} className="flex gap-2 items-start">
+                  <span className="text-sm font-medium w-6 pt-1.5 text-gray-500 shrink-0">{String.fromCharCode(65 + i)}.</span>
+                  <Textarea rows={1} className="min-h-8 py-1 resize-none" {...form.register(`options.${i}`)} />
                   {fields.length > 2 && (
-                    <Button type="button" variant="ghost" size="sm" className="text-gray-400 hover:text-red-500" onClick={() => remove(i)}>×</Button>
+                    <Button type="button" variant="ghost" size="sm" className="text-gray-400 hover:text-red-500 shrink-0" onClick={() => remove(i)}>×</Button>
                   )}
                 </div>
               ))}
