@@ -20,7 +20,8 @@ const navItems = [
   { href: "/legal", label: "Yasal Metinler", icon: Scale },
 ];
 
-export function Sidebar({ pendingCount = 0 }: { pendingCount?: number }) {
+export function Sidebar({ pendingCount = 0, reportCount = 0 }: { pendingCount?: number; reportCount?: number }) {
+  const badgeCount: Record<string, number> = { "/questions": pendingCount, "/reports": reportCount };
   const pathname = usePathname();
   const router = useRouter();
   const clearAuth = useAuthStore((s) => s.clearAuth);
@@ -50,9 +51,9 @@ export function Sidebar({ pendingCount = 0 }: { pendingCount?: number }) {
           >
             <Icon className="h-4 w-4" />
             {label}
-            {href === "/questions" && pendingCount > 0 && (
+            {(badgeCount[href] ?? 0) > 0 && (
               <Badge variant="destructive" className="ml-auto text-xs px-1.5">
-                {pendingCount}
+                {badgeCount[href]}
               </Badge>
             )}
           </Link>
