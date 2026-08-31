@@ -4,6 +4,7 @@ import type { AdminQuestion, AiFixResult, PagedResult } from "@/lib/types";
 export interface GetQuestionsParams {
   status?: string;
   categoryId?: string;
+  verification?: string; // AI doğrulama filtresi (ör. "gecti")
   page?: number;
   pageSize?: number;
 }

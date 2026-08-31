@@ -32,10 +32,13 @@ function QuestionsContent() {
   const router = useRouter();
 
   const status = searchParams.get("status") ?? "PendingReview";
+  const verification = searchParams.get("verification") ?? "";
+  const aiPassed = verification === "gecti";
   const page = Number(searchParams.get("page") ?? "1");
 
   const { data, isLoading } = useQuestions({
     status: status === "all" ? undefined : status,
+    verification: verification || undefined,
     page,
     pageSize: 20,
   });
@@ -52,6 +55,15 @@ function QuestionsContent() {
     const params = new URLSearchParams(searchParams.toString());
     params.set(key, value);
     if (key !== "page") params.set("page", "1");
+    router.push(`/questions?${params.toString()}`);
+    setSelected(new Set());
+  }
+
+  function toggleAiPassed(checked: boolean) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (checked) params.set("verification", "gecti");
+    else params.delete("verification");
+    params.set("page", "1");
     router.push(`/questions?${params.toString()}`);
     setSelected(new Set());
   }
@@ -111,6 +123,11 @@ function QuestionsContent() {
             ))}
           </SelectContent>
         </Select>
+
+        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+          <Checkbox checked={aiPassed} onCheckedChange={(c) => toggleAiPassed(!!c)} />
+          Yalnızca AI&apos;dan geçenler
+        </label>
       </div>
 
       <BulkActionBar
