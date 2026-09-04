@@ -101,6 +101,7 @@ function UsersContent() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Kullanıcı Adı</TableHead>
                 <TableHead>E-posta</TableHead>
                 <TableHead>Rol</TableHead>
                 <TableHead>KPSS Türü</TableHead>
@@ -110,6 +111,7 @@ function UsersContent() {
             <TableBody>
               {(data?.items ?? []).map((u) => (
                 <TableRow key={u.id} className="cursor-pointer hover:bg-gray-50" onClick={() => setSelectedUser(u)}>
+                  <TableCell className="font-medium">{u.username || "—"}</TableCell>
                   <TableCell>{u.email}</TableCell>
                   <TableCell><Badge className={roleColor[u.role]}>{roleLabel[u.role]}</Badge></TableCell>
                   <TableCell className="text-gray-600">{u.kpssType ? kpssLabel[u.kpssType] ?? u.kpssType : "—"}</TableCell>
@@ -120,7 +122,7 @@ function UsersContent() {
               ))}
               {data?.items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-gray-400">Kullanıcı bulunamadı</TableCell>
+                  <TableCell colSpan={5} className="text-center py-8 text-gray-400">Kullanıcı bulunamadı</TableCell>
                 </TableRow>
               )}
             </TableBody>

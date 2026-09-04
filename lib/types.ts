@@ -40,6 +40,7 @@ export interface AdminCategory {
 export interface AdminUser {
   id: string;
   email: string;
+  username: string;
   role: UserRole;
   kpssType?: KpssType;
   createdAt: string;
