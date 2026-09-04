@@ -75,7 +75,7 @@ function UsersContent() {
 
       <div className="flex items-center gap-3">
         <Input
-          placeholder="E-posta ara..."
+          placeholder="E-posta / kullanıcı adı ara..."
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           className="w-64"
