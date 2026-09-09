@@ -5,6 +5,7 @@ export interface GetQuestionsParams {
   status?: string;
   categoryId?: string;
   verification?: string; // AI doğrulama filtresi (ör. "gecti")
+  source?: string; // kaynak filtresi ("Service" | "Import"); {params} ile query'ye gider
   page?: number;
   pageSize?: number;
 }

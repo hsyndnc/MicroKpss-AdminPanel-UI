@@ -27,6 +27,7 @@ export interface AdminQuestion {
   verificationStatus?: string | null; // "gecti" | "supheli" | "kontrol_edilemedi" | null
   verificationNote?: string | null;
   sourceText?: string | null; // üretimde kullanılan kaynak metin (yalnız detay endpoint'i döner)
+  source?: "Service" | "Import"; // kaynak: "Service" = pipeline üretti, "Import" = panelden import
 }
 
 export interface AdminCategory {
