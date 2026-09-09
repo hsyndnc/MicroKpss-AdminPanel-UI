@@ -9,6 +9,7 @@ import { RejectDialog } from "@/components/shared/RejectDialog";
 import { BulkActionBar } from "@/components/shared/BulkActionBar";
 import { ImportSheet } from "./_components/ImportSheet";
 import { QuestionStats } from "./_components/QuestionStats";
+import { ClientOnly } from "@/components/shared/ClientOnly";
 import { Button } from "@/components/ui/button";
 import { DataPagination } from "@/components/shared/DataPagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -119,7 +120,17 @@ function QuestionsContent() {
         <Button onClick={() => setImportOpen(true)}>İçe Aktar</Button>
       </div>
 
-      <QuestionStats onStatusFilter={(s) => setQueryParam("status", s)} />
+      <ClientOnly
+        fallback={
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Skeleton className="h-28 rounded-lg" />
+            <Skeleton className="h-28 rounded-lg" />
+            <Skeleton className="h-28 rounded-lg sm:col-span-2" />
+          </div>
+        }
+      >
+        <QuestionStats onStatusFilter={(s) => setQueryParam("status", s)} />
+      </ClientOnly>
 
       <div className="flex items-center gap-3">
         <Select value={status} items={STATUS_OPTIONS} onValueChange={(v) => v && setQueryParam("status", v)}>
