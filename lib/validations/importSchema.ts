@@ -75,6 +75,17 @@ function stripOptionPrefix(s: unknown): string {
   return String(s ?? "").replace(/^\s*[A-E]\)\s*/i, "").trim();
 }
 
+/** Şıkları diziden (options/siklar) veya {A..E} nesnesinden sıralı diziye çevirir. */
+function extractOptions(src: unknown): string[] {
+  let arr: unknown[];
+  if (Array.isArray(src)) arr = src;
+  else if (src && typeof src === "object") {
+    const obj = src as Record<string, unknown>;
+    arr = ["A", "B", "C", "D", "E"].map((k) => obj[k] ?? obj[k.toLowerCase()]);
+  } else arr = [];
+  return arr.map(stripOptionPrefix).filter((v) => v.length > 0);
+}
+
 function letterToIndex(letter: unknown): number {
   return ["A", "B", "C", "D", "E"].indexOf(String(letter ?? "").trim().toUpperCase());
 }
@@ -98,7 +109,7 @@ function resolveCorrectJson(row: Record<string, unknown>, options: string[]): st
     const idx = Number(row.dogru_indeks);
     if (Number.isInteger(idx) && options[idx]) return options[idx];
   }
-  const harfIdx = letterToIndex(row.dogru_harf);
+  const harfIdx = letterToIndex(row.dogru_harf ?? row.answer);
   if (harfIdx >= 0 && options[harfIdx]) return options[harfIdx];
   return "";
 }
@@ -122,11 +133,8 @@ export function parseImportFile(content: string, categoryMap: Map<string, string
     const rawCat = row.categoryId ?? row.categoryName ?? row.kategori;
     const categoryId = pickCategory(rawCat, categoryMap, defaultCategoryId);
 
-    const bodyRaw = row.body ?? row.soru;
-    const optionsSrc = Array.isArray(row.options) ? row.options
-      : Array.isArray(row.siklar) ? row.siklar
-      : [];
-    const options = optionsSrc.map(stripOptionPrefix).filter((v) => v.length > 0);
+    const bodyRaw = row.body ?? row.soru ?? row.question;
+    const options = extractOptions(row.options ?? row.siklar);
 
     const candidate = {
       body: typeof bodyRaw === "string" ? bodyRaw : String(bodyRaw ?? ""),
