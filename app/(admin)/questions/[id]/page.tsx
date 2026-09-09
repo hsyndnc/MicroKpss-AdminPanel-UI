@@ -10,6 +10,7 @@ import { useCategories } from "@/lib/hooks/useCategories";
 import { useReports } from "@/lib/hooks/useReports";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { VerificationBadge } from "@/components/shared/VerificationBadge";
+import { SourceBadge } from "@/components/shared/SourceBadge";
 import { CategoryCascadeSelect } from "@/components/shared/CategoryCascadeSelect";
 import { RejectDialog } from "@/components/shared/RejectDialog";
 import { AiFixDialog } from "@/components/shared/AiFixDialog";
@@ -132,6 +133,7 @@ export default function QuestionDetailPage() {
           )}
           <StatusBadge status={question.status as ContentStatus} />
           <VerificationBadge status={question.verificationStatus} />
+          <SourceBadge source={question.source} />
         </div>
       </div>
 
