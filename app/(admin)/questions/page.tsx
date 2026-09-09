@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useQuestions, useApproveQuestion, useRejectQuestion } from "@/lib/hooks/useQuestions";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { VerificationBadge } from "@/components/shared/VerificationBadge";
+import { SourceBadge } from "@/components/shared/SourceBadge";
 import { RejectDialog } from "@/components/shared/RejectDialog";
 import { BulkActionBar } from "@/components/shared/BulkActionBar";
 import { ImportSheet } from "./_components/ImportSheet";
@@ -27,6 +28,12 @@ const STATUS_OPTIONS = [
   { value: "all", label: "Tümü" },
 ];
 
+const SOURCE_OPTIONS = [
+  { value: "all", label: "Tümü" },
+  { value: "Service", label: "Servis" },
+  { value: "Import", label: "İmport" },
+];
+
 function QuestionsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -34,11 +41,13 @@ function QuestionsContent() {
   const status = searchParams.get("status") ?? "PendingReview";
   const verification = searchParams.get("verification") ?? "";
   const aiPassed = verification === "gecti";
+  const source = searchParams.get("source") ?? "all";
   const page = Number(searchParams.get("page") ?? "1");
 
   const { data, isLoading } = useQuestions({
     status: status === "all" ? undefined : status,
     verification: verification || undefined,
+    source: source === "all" ? undefined : source,
     page,
     pageSize: 20,
   });
@@ -124,6 +133,17 @@ function QuestionsContent() {
           </SelectContent>
         </Select>
 
+        <Select value={source} items={SOURCE_OPTIONS} onValueChange={(v) => v && setQueryParam("source", v)}>
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SOURCE_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
           <Checkbox checked={aiPassed} onCheckedChange={(c) => toggleAiPassed(!!c)} />
           Yalnızca AI&apos;dan geçenler
@@ -155,6 +175,7 @@ function QuestionsContent() {
                 <TableHead>Zorluk</TableHead>
                 <TableHead>Durum</TableHead>
                 <TableHead>AI Doğrulama</TableHead>
+                <TableHead>Kaynak</TableHead>
                 <TableHead>Tarih</TableHead>
                 <TableHead className="text-right">Aksiyonlar</TableHead>
               </TableRow>
@@ -172,6 +193,7 @@ function QuestionsContent() {
                   <TableCell className="text-sm">{q.difficulty}</TableCell>
                   <TableCell><StatusBadge status={q.status as ContentStatus} /></TableCell>
                   <TableCell><VerificationBadge status={q.verificationStatus} /></TableCell>
+                  <TableCell><SourceBadge source={q.source} /></TableCell>
                   <TableCell className="text-sm text-gray-600">
                     {format(new Date(q.createdAt), "d MMM yyyy", { locale: tr })}
                   </TableCell>
@@ -194,7 +216,7 @@ function QuestionsContent() {
               ))}
               {data?.items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-gray-400">Soru bulunamadı</TableCell>
+                  <TableCell colSpan={9} className="text-center py-8 text-gray-400">Soru bulunamadı</TableCell>
                 </TableRow>
               )}
             </TableBody>
