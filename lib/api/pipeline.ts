@@ -105,13 +105,14 @@ export async function generateFromTopic(
   return data;
 }
 
-// Tüm kaynaktan: ağaçta gezerek (her başlık + alt başlık) üret; soru sayısını endpoint
-// içerik boyutuna göre otomatik belirler. Sorular Ders'e kaydedilir, topic_id ile etiketlenir.
+// Tüm kaynaktan: ağaçta gezerek (her başlık + alt başlık), uzun süren bir iştir. Endpoint işi
+// arka planda başlatıp job_id döner; ilerleme getPipelineJob(job_id) ile yoklanır. Soru sayısını
+// endpoint içerik boyutuna göre otomatik belirler; sorular Ders'e kaydedilir, topic_id etiketlenir.
 export async function generateFromSource(
   sourceId: string,
   body: { category_id: string; tip?: string }
-): Promise<GenerateResult> {
-  const { data } = await pipelineClient.post<GenerateResult>(
+): Promise<GenerateJobResponse> {
+  const { data } = await pipelineClient.post<GenerateJobResponse>(
     `/sources/${sourceId}/generate`, body
   );
   return data;

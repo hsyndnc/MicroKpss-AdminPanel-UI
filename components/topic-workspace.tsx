@@ -1,13 +1,13 @@
 "use client";
 import axios from "axios";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAdminCategories } from "@/lib/api/categories";
-import { saveTopics, generateFromTopic, reviewTopics, type TopicTree, type TopicSubtopic, type Suggestion } from "@/lib/api/pipeline";
+import { saveTopics, generateFromTopic, generateFromSource, getPipelineJob, reviewTopics, type TopicTree, type TopicSubtopic, type Suggestion } from "@/lib/api/pipeline";
 import { TopicTreeEditor, moveNode, visibleSuggestions } from "@/components/topic-tree-editor";
 import { SuggestionPreview } from "@/components/suggestion-preview";
 import type { AdminCategory } from "@/lib/types";
@@ -20,6 +20,7 @@ export function TopicWorkspace({
   const [selectedDersId, setSelectedDersId] = useState("");
   const [selectedKonuId, setSelectedKonuId] = useState("");
   const [selectedNodeId, setSelectedNodeId] = useState("");
+  const [mode, setMode] = useState<"all" | "topic">("all");
   const [count, setCount] = useState(10);
   const [phase, setPhase] = useState<"idle" | "generating" | "done" | "error">("idle");
   const [resultCount, setResultCount] = useState(0);
@@ -29,8 +30,13 @@ export function TopicWorkspace({
   const [reviewState, setReviewState] = useState<"idle" | "loading" | "error">("idle");
   const [reviewError, setReviewError] = useState("");
   const [selectedSugNodeId, setSelectedSugNodeId] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number; current: string }>(
+    { done: 0, total: 0, current: "" }
+  );
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => { getAdminCategories().then(setCategories); }, []);
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
   // Görünür öneriler + etkin seçim (seçili öneri listeden düşerse ilkine döner).
   const visibleSugs = visibleSuggestions(tree, tree.suggestions ?? []);
@@ -99,6 +105,12 @@ export function TopicWorkspace({
   }
 
   async function handleGenerate() {
+    if (mode === "topic") return handleGenerateFromNode();
+    return handleGenerateFromSource();
+  }
+
+  // Mevcut davranış: seçilen tek düğümden, seçilen Konu kategorisine üret.
+  async function handleGenerateFromNode() {
     if (!selectedNodeId || !selectedKonuId) return;
     try {
       setPhase("generating");
@@ -113,6 +125,50 @@ export function TopicWorkspace({
       setPhase("done");
     } catch {
       setErrorMsg("Üretim sırasında hata.");
+      setPhase("error");
+    }
+  }
+
+  // Tüm kaynaktan: uzun süren iş. Endpoint job_id döner; ilerleme getPipelineJob ile ~2 sn'de bir
+  // yoklanır (upload akışındaki desenle aynı). Sorular Ders'e kaydedilir, topic_id ile etiketlenir.
+  async function handleGenerateFromSource() {
+    if (!selectedDersId) return;
+    try {
+      setPhase("generating");
+      setProgress({ done: 0, total: 0, current: "" });
+      await saveTopics(sourceId, tree); // üretimden önce düzeltmeleri kaydet
+      const { job_id } = await generateFromSource(sourceId, { category_id: selectedDersId });
+      if (!job_id) {
+        setErrorMsg("Üretim işi başlatılamadı (pipeline job desteği gerekiyor).");
+        setPhase("error");
+        return;
+      }
+      pollRef.current = setInterval(async () => {
+        try {
+          const job = await getPipelineJob(job_id);
+          setProgress({ done: job.done ?? 0, total: job.total ?? 0, current: job.current ?? "" });
+          if (job.status === "done") {
+            clearInterval(pollRef.current!);
+            if (job.export?.error) {
+              setErrorMsg(`Sorular üretildi ama kaydedilemedi: ${job.export.error}`);
+              setPhase("error");
+              return;
+            }
+            setResultCount(job.export?.imported ?? job.count ?? 0);
+            setPhase("done");
+          } else if (job.status === "error") {
+            clearInterval(pollRef.current!);
+            setErrorMsg(job.error ?? "Üretim sırasında hata.");
+            setPhase("error");
+          }
+        } catch {
+          clearInterval(pollRef.current!);
+          setErrorMsg("Üretim durumu alınamadı.");
+          setPhase("error");
+        }
+      }, 2000);
+    } catch {
+      setErrorMsg("Üretim başlatılamadı.");
       setPhase("error");
     }
   }
@@ -172,6 +228,12 @@ export function TopicWorkspace({
       </div>
 
       <div className="max-w-2xl rounded-lg border p-4 space-y-3">
+        <div className="flex gap-2">
+          <Button variant={mode === "all" ? "default" : "outline"} className="flex-1"
+                  onClick={() => setMode("all")}>Tüm kaynaktan</Button>
+          <Button variant={mode === "topic" ? "default" : "outline"} className="flex-1"
+                  onClick={() => setMode("topic")}>Belirli konudan</Button>
+        </div>
         <div className="space-y-1">
           <Label>Ders (kayıt hedefi)</Label>
           <Select items={dersler.map((d) => ({ value: d.id, label: d.name }))}
@@ -182,7 +244,7 @@ export function TopicWorkspace({
             </SelectContent>
           </Select>
         </div>
-        {selectedDersId && (
+        {mode === "topic" && selectedDersId && (
           <div className="space-y-1">
             <Label>Konu (kayıt hedefi)</Label>
             <Select items={konular.map((k) => ({ value: k.id, label: k.name }))}
@@ -194,32 +256,62 @@ export function TopicWorkspace({
             </Select>
           </div>
         )}
-        <div className="space-y-1">
-          <Label>Hangi konudan üretilsin?</Label>
-          <Select items={nodeOptions.map((n) => ({ value: n.id, label: n.label }))}
-                  onValueChange={(v) => setSelectedNodeId(v as string)}>
-            <SelectTrigger className="w-full"><SelectValue placeholder="Konu/alt başlık seç..." /></SelectTrigger>
-            <SelectContent>
-              {nodeOptions.map((n) => (<SelectItem key={n.id} value={n.id}>{n.label}</SelectItem>))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1">
-          <Label>Kaç soru?</Label>
-          <Input type="number" min={1} max={30} value={count}
-                 onChange={(e) => setCount(Number(e.target.value))} className="w-32" />
-        </div>
-        <Button className="w-full" disabled={!selectedNodeId || !selectedKonuId || phase === "generating"}
-                onClick={handleGenerate}>
+        {mode === "topic" && (
+          <div className="space-y-1">
+            <Label>Hangi konudan üretilsin?</Label>
+            <Select items={nodeOptions.map((n) => ({ value: n.id, label: n.label }))}
+                    onValueChange={(v) => setSelectedNodeId(v as string)}>
+              <SelectTrigger className="w-full"><SelectValue placeholder="Konu/alt başlık seç..." /></SelectTrigger>
+              <SelectContent>
+                {nodeOptions.map((n) => (<SelectItem key={n.id} value={n.id}>{n.label}</SelectItem>))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        {mode === "all" && (
+          <p className="text-sm text-gray-500">
+            Kaynağın tümünden, ağaçta gezerek (her başlık ve alt başlık) üretilir. Soru sayısı
+            içerik boyutuna göre <b>otomatik</b> belirlenir; sorular <b>Ders</b> altına kaydedilir.
+          </p>
+        )}
+        {mode === "all" && phase === "generating" && (
+          <div className="space-y-1">
+            <div className="h-2 w-full rounded bg-gray-200">
+              <div className="h-2 rounded bg-blue-600 transition-all"
+                   style={{ width: progress.total > 0
+                     ? `${Math.round((progress.done / progress.total) * 100)}%` : "0%" }} />
+            </div>
+            <p className="text-xs text-gray-500">
+              {progress.total > 0
+                ? `${progress.done}/${progress.total}${progress.current ? ` — ${progress.current}` : ""}`
+                : "Üretim başlatılıyor..."}
+            </p>
+          </div>
+        )}
+        {mode === "topic" && (
+          <div className="space-y-1">
+            <Label>Kaç soru?</Label>
+            <Input type="number" min={1} max={30} value={count}
+                   onChange={(e) => setCount(Number(e.target.value))} className="w-32" />
+          </div>
+        )}
+        <Button className="w-full" onClick={handleGenerate}
+                disabled={phase === "generating" ||
+                  (mode === "all" ? !selectedDersId : (!selectedNodeId || !selectedKonuId))}>
           {phase === "generating" ? "Üretiliyor..." : "Soru Üret"}
         </Button>
 
         {phase === "done" && (
-          <div className="rounded-md bg-green-50 text-green-700 text-sm p-3">
-            ✅ {resultCount} soru veritabanına eklendi.{" "}
-            <button className="underline" onClick={() => router.push("/questions?status=PendingReview")}>
-              Bekleyenleri gör
-            </button>
+          <div className="space-y-2">
+            <div className="rounded-md bg-green-50 text-green-700 text-sm p-3">
+              ✅ {resultCount} soru veritabanına eklendi.{" "}
+              <button className="underline" onClick={() => router.push("/questions?status=PendingReview")}>
+                Bekleyenleri gör
+              </button>
+            </div>
+            {errorMsg && (
+              <div className="rounded-md bg-amber-50 text-amber-700 text-sm p-3">⚠️ {errorMsg}</div>
+            )}
           </div>
         )}
         {phase === "error" && (
