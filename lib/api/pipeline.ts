@@ -37,12 +37,24 @@ export interface PipelineUploadResponse {
   file: string;
 }
 
+export interface GenerateJobResponse {
+  job_id: string;
+  status: string;
+}
+
 export interface PipelineJobResponse {
   status: "queued" | "processing" | "done" | "error";
-  file: string;
+  file?: string;                 // upload işinde dolu; üretim işinde olmayabilir
   source_id?: string;
   topics?: TopicTree;
   error?: string;
+  // "Tüm kaynaktan üret" (generateFromSource) iş alanları:
+  done?: number;                 // biten üretim hedefi sayısı
+  total?: number;                // toplam üretim hedefi sayısı
+  current?: string;              // şu an üretilen başlık
+  count?: number;                // biten işte toplam üretilen soru
+  skipped?: number;              // atlanan üretim sayısı
+  export?: { imported?: number; error?: string };
 }
 
 export interface GenerateResult {
@@ -89,6 +101,18 @@ export async function generateFromTopic(
 ): Promise<GenerateResult> {
   const { data } = await pipelineClient.post<GenerateResult>(
     `/sources/${sourceId}/topics/${nodeId}/generate`, body
+  );
+  return data;
+}
+
+// Tüm kaynaktan: ağaçta gezerek (her başlık + alt başlık) üret; soru sayısını endpoint
+// içerik boyutuna göre otomatik belirler. Sorular Ders'e kaydedilir, topic_id ile etiketlenir.
+export async function generateFromSource(
+  sourceId: string,
+  body: { category_id: string; tip?: string }
+): Promise<GenerateResult> {
+  const { data } = await pipelineClient.post<GenerateResult>(
+    `/sources/${sourceId}/generate`, body
   );
   return data;
 }
