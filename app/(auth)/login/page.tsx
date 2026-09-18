@@ -26,8 +26,12 @@ export default function LoginPage() {
       const data = await login(values.email, values.password);
       setAuth({ email: data.email, role: data.role as UserRole });
       router.push("/dashboard");
-    } catch {
-      toast.error("E-posta veya şifre hatalı.");
+    } catch (e) {
+      if (e instanceof Error && e.message === "not_admin") {
+        toast.error("Bu panel yalnızca yöneticiler içindir.");
+      } else {
+        toast.error("E-posta veya şifre hatalı.");
+      }
     }
   }
 

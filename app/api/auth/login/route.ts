@@ -16,6 +16,13 @@ export async function POST(req: NextRequest) {
   }
 
   const data = await res.json(); // {accessToken, refreshToken, accessTokenExpiry, email, role}
+
+  // Admin-only panel: kimlik doğru olsa bile yalnız Admin rolü içeri girer.
+  // Standard/Premium (mobil kullanıcı) cookie ALAMAZ — oturum açılmaz.
+  if (data.role !== "Admin") {
+    return NextResponse.json({ error: "not_admin" }, { status: 403 });
+  }
+
   const out = NextResponse.json({ email: data.email, role: data.role });
   setAuthCookies(out, data.accessToken, data.refreshToken);
   return out;

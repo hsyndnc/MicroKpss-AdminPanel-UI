@@ -9,6 +9,7 @@ export async function login(email: string, password: string): Promise<LoginResul
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
+  if (res.status === 403) throw new Error("not_admin");
   if (!res.ok) throw new Error("login_failed");
   return res.json();
 }
