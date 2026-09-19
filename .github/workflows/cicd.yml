@@ -1,0 +1,51 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      # `npm ci` DEĞİL: commit'li lock cross-platform tutarsız (@img/sharp-wasm32'ın
+      # linux emnapi optional-dep'leri eksik). `npm install` sürümleri lock'tan sabit
+      # tutar ama boşluğu tolere eder — Dockerfile ile aynı yaklaşım.
+      - name: Install
+        run: npm install --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+  # Deploy: SADECE main'e push'ta VE build geçtiyse çalışır.
+  # VPS'e SSH ile girer, main'i çeker, panel container'ını yeniden derleyip başlatır.
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            cd /root/MicroKpss-AdminPanel-UI
+            git fetch origin main
+            git reset --hard origin/main
+            docker compose -f docker-compose.prod.yml up -d --build
+            docker image prune -f

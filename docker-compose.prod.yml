@@ -1,0 +1,39 @@
+# ==========================================================================
+# MicroKpss Admin Panel — PRODUCTION compose (VPS)
+# --------------------------------------------------------------------------
+# Tek servis: panel (Next.js standalone). Backend'in prod stack'ine DIŞTAN
+# katılır — kendi Caddy'si/DB'si yok; backend'in Caddy'si bu container'a
+# aynı ağdan "panel:3000" ile erişir, panel de backend'e "http://api:8080".
+#
+# Kullanım (sunucuda):
+#   cd /root/MicroKpss-AdminPanel-UI
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Not: .env.prod GEREKMEZ — panelde prod sırrı yok, tüm env inline.
+# ==========================================================================
+services:
+  panel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: panel          # backend Caddyfile'ı "reverse_proxy panel:3000" bunu bekler
+    restart: unless-stopped
+    expose:
+      - "3000"                     # Dışarı AÇILMIYOR; yalnız iç ağdan Caddy erişir
+    environment:
+      - NODE_ENV=production
+      - BACKEND_URL=http://api:8080  # backend "api" servisi, iç ağ (trailing path YOK)
+      # PIPELINE_URL bilinçli TANIMSIZ: pipeline VPS'e deploy edilmiyor; panelin
+      # pipeline özellikleri zarifçe 502 döner (lib/api/pipeline-proxy.ts catch).
+    networks:
+      - kpssapp-network
+
+networks:
+  # Backend stack'inin oluşturduğu ağa DIŞTAN katıl. Ağın explicit "name:"i yok →
+  # docker compose adı proje-önekler: "<proje>_kpssapp-network". Backend dizini
+  # /root/KpssSoru-backend olduğundan proje = "kpsssoru-backend".
+  # ‼️ VPS'te DOĞRULA: `docker network ls | grep kpssapp` — farklıysa aşağıdaki
+  #    name'i ona göre düzelt (bootstrap adımı C4).
+  kpssapp-network:
+    external: true
+    name: kpsssoru-backend_kpssapp-network
