@@ -1,11 +1,14 @@
 "use client";
 import { useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useMutation } from "@tanstack/react-query";
 import { useQuestions, useApproveQuestion, useRejectQuestion } from "@/lib/hooks/useQuestions";
+import { deleteQuestion } from "@/lib/api/questions";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { VerificationBadge } from "@/components/shared/VerificationBadge";
 import { SourceBadge } from "@/components/shared/SourceBadge";
 import { RejectDialog } from "@/components/shared/RejectDialog";
+import { DeleteDialog } from "@/components/shared/DeleteDialog";
 import { BulkActionBar } from "@/components/shared/BulkActionBar";
 import { ImportSheet } from "./_components/ImportSheet";
 import { QuestionStats } from "./_components/QuestionStats";
@@ -58,8 +61,19 @@ function QuestionsContent() {
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [rejectTarget, setRejectTarget] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteQuestion(id),
+    onSuccess: () => {
+      toast.success("Soru silindi.");
+    },
+    onError: () => {
+      toast.error("Soru silinemedi.");
+    },
+  });
 
   function setQueryParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -111,6 +125,11 @@ function QuestionsContent() {
     await rejectMutation.mutateAsync({ id, reason });
     setRejectTarget(null);
     toast.error("Soru reddedildi.");
+  }
+
+  async function handleDelete(id: string) {
+    await deleteMutation.mutateAsync(id);
+    setDeleteTarget(null);
   }
 
   return (
@@ -219,6 +238,11 @@ function QuestionsContent() {
                         </Button>
                       </>
                     )}
+                    {q.status === "Active" && (
+                      <Button size="sm" variant="outline" className="text-red-700 border-red-300" onClick={() => setDeleteTarget(q.id)}>
+                        Sil
+                      </Button>
+                    )}
                     <Button size="sm" variant="ghost" onClick={() => router.push(`/questions/${q.id}`)}>
                       Düzenle
                     </Button>
@@ -249,6 +273,13 @@ function QuestionsContent() {
         onConfirm={(reason) => rejectTarget && handleReject(rejectTarget, reason)}
         onCancel={() => setRejectTarget(null)}
         loading={rejectMutation.isPending}
+      />
+
+      <DeleteDialog
+        open={!!deleteTarget}
+        onConfirm={() => deleteTarget && handleDelete(deleteTarget)}
+        onCancel={() => setDeleteTarget(null)}
+        loading={deleteMutation.isPending}
       />
 
       <ImportSheet open={importOpen} onClose={() => setImportOpen(false)} />

@@ -41,10 +41,15 @@ async function handle(req: NextRequest, path: string[]) {
     }
   }
 
-  const payload = await res.text();
+  const payload = res.status === 204 || res.status === 304 ? null : await res.text();
+  const contentType = res.headers.get("content-type");
+  const headers: Record<string, string> = {};
+  if (contentType) headers["content-type"] = contentType;
+  else if (payload) headers["content-type"] = "application/json";
+  
   const out = new NextResponse(payload, {
     status: res.status,
-    headers: { "content-type": res.headers.get("content-type") ?? "application/json" },
+    headers,
   });
   if (rotated) setAuthCookies(out, rotated.access, rotated.refresh);
   return out;

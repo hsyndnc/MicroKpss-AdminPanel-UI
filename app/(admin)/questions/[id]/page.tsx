@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
-import { getAdminQuestionById, updateQuestion, approveQuestion, rejectQuestion } from "@/lib/api/questions";
+import { getAdminQuestionById, updateQuestion, approveQuestion, rejectQuestion, deleteQuestion } from "@/lib/api/questions";
 import { questionSchema, type QuestionInput } from "@/lib/validations/questionSchema";
 import { useCategories } from "@/lib/hooks/useCategories";
 import { useReports } from "@/lib/hooks/useReports";
@@ -13,6 +13,7 @@ import { VerificationBadge } from "@/components/shared/VerificationBadge";
 import { SourceBadge } from "@/components/shared/SourceBadge";
 import { CategoryCascadeSelect } from "@/components/shared/CategoryCascadeSelect";
 import { RejectDialog } from "@/components/shared/RejectDialog";
+import { DeleteDialog } from "@/components/shared/DeleteDialog";
 import { AiFixDialog } from "@/components/shared/AiFixDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ export default function QuestionDetailPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const [rejectOpen, setRejectOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [aiFixOpen, setAiFixOpen] = useState(false);
 
   const { data: question, isLoading } = useQuery({
@@ -106,6 +108,11 @@ export default function QuestionDetailPage() {
   const rejectMutation = useMutation({
     mutationFn: (reason: string) => rejectQuestion(id, reason),
     onSuccess: () => { invalidateAll(); toast.error("Reddedildi"); router.push("/questions"); },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteQuestion(id),
+    onSuccess: () => { invalidateAll(); toast.success("Soru silindi"); router.push("/questions"); },
   });
 
   if (isLoading) return <div className="text-gray-400">Yükleniyor...</div>;
@@ -310,16 +317,23 @@ export default function QuestionDetailPage() {
           <Button type="submit" form="question-form" disabled={updateMutation.isPending}>
             {updateMutation.isPending ? "Kaydediliyor..." : "Kaydet"}
           </Button>
-          {question.status === "PendingReview" && (
-            <div className="flex gap-2">
-              <Button type="button" className="bg-green-600 hover:bg-green-700" onClick={() => approveMutation.mutate()} disabled={approveMutation.isPending}>
-                Onayla
+          <div className="flex gap-2">
+            {question.status === "PendingReview" && (
+              <>
+                <Button type="button" className="bg-green-600 hover:bg-green-700" onClick={() => approveMutation.mutate()} disabled={approveMutation.isPending}>
+                  Onayla
+                </Button>
+                <Button type="button" variant="outline" className="text-red-700 border-red-300" onClick={() => setRejectOpen(true)}>
+                  Reddet
+                </Button>
+              </>
+            )}
+            {question.status === "Active" && (
+              <Button type="button" variant="outline" className="text-red-700 border-red-300" onClick={() => setDeleteOpen(true)}>
+                Sil
               </Button>
-              <Button type="button" variant="outline" className="text-red-700 border-red-300" onClick={() => setRejectOpen(true)}>
-                Reddet
-              </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
@@ -328,6 +342,13 @@ export default function QuestionDetailPage() {
         onConfirm={(reason) => rejectMutation.mutate(reason)}
         onCancel={() => setRejectOpen(false)}
         loading={rejectMutation.isPending}
+      />
+
+      <DeleteDialog
+        open={deleteOpen}
+        onConfirm={() => deleteMutation.mutate()}
+        onCancel={() => setDeleteOpen(false)}
+        loading={deleteMutation.isPending}
       />
 
       <AiFixDialog
