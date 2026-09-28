@@ -43,7 +43,7 @@ export interface GenerateJobResponse {
 }
 
 export interface PipelineJobResponse {
-  status: "queued" | "processing" | "done" | "error";
+  status: "queued" | "processing" | "done" | "error" | "cancelled";
   file?: string;                 // upload işinde dolu; üretim işinde olmayabilir
   source_id?: string;
   topics?: TopicTree;
@@ -73,6 +73,13 @@ export async function uploadPdfToPipeline(file: File): Promise<PipelineUploadRes
 export async function getPipelineJob(jobId: string): Promise<PipelineJobResponse> {
   const { data } = await pipelineClient.get<PipelineJobResponse>(`/jobs/${jobId}`);
   return data;
+}
+
+// Çalışan üretim işini iptal eder. Pipeline bayrağı set eder; döngü bir sonraki
+// soru öncesi durur ve o ana kadarki sorular kaydedilir (kısmi). İş bitince
+// getPipelineJob(job) status="cancelled" döner.
+export async function cancelPipelineJob(jobId: string): Promise<void> {
+  await pipelineClient.post(`/jobs/${jobId}/cancel`);
 }
 
 export async function getTopics(sourceId: string): Promise<TopicTree> {
