@@ -144,12 +144,58 @@ function QuestionsContent() {
     setDeleteTarget(null);
   }
 
+  const statusLabel = STATUS_OPTIONS.find((o) => o.value === status)?.label;
+  const sourceLabel = SOURCE_OPTIONS.find((o) => o.value === source)?.label;
+  const categoryLabel = categories.find((c) => c.id === categoryId)?.name;
+  const hasActiveFilters = status !== "PendingReview" || source !== "all" || categoryId !== "all" || aiPassed;
+
+  function clearAllFilters() {
+    router.push("/questions");
+    setSelected(new Set());
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Sorular</h1>
+        <div>
+          <div className="text-xs text-gray-500 mb-1">Sorular / {statusLabel}</div>
+          <h1 className="text-2xl font-bold">{statusLabel} Sorular {data?.totalCount ? `(${data.totalCount})` : ""}</h1>
+        </div>
         <Button onClick={() => setImportOpen(true)}>İçe Aktar</Button>
       </div>
+
+      {hasActiveFilters && (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
+          <div className="text-sm font-medium text-gray-700">Aktif Filtreler:</div>
+          <div className="flex flex-wrap gap-2">
+            {status !== "PendingReview" && (
+              <div className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm flex items-center gap-2 border border-gray-300">
+                Durum: {statusLabel}
+                <button onClick={() => setQueryParam("status", "PendingReview")} className="text-gray-500 hover:text-gray-900 font-bold">✕</button>
+              </div>
+            )}
+            {source !== "all" && (
+              <div className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm flex items-center gap-2 border border-gray-300">
+                Kaynak: {sourceLabel}
+                <button onClick={() => setQueryParam("source", "all")} className="text-gray-500 hover:text-gray-900 font-bold">✕</button>
+              </div>
+            )}
+            {categoryId !== "all" && (
+              <div className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm flex items-center gap-2 border border-gray-300">
+                Ders: {categoryLabel}
+                <button onClick={() => setQueryParam("categoryId", "all")} className="text-gray-500 hover:text-gray-900 font-bold">✕</button>
+              </div>
+            )}
+            {aiPassed && (
+              <div className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm flex items-center gap-2 border border-gray-300">
+                AI Doğrulanmış
+                <button onClick={() => toggleAiPassed(false)} className="text-gray-500 hover:text-gray-900 font-bold">✕</button>
+              </div>
+            )}
+            <button onClick={clearAllFilters} className="text-gray-500 hover:text-gray-700 text-sm underline ml-1">Tümünü Temizle</button>
+          </div>
+        </div>
+      )}
 
       <ClientOnly
         fallback={
