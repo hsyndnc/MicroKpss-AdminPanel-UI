@@ -7,10 +7,11 @@ export interface GetUsersParams {
   search?: string;
   role?: string;
   kpssType?: string;
+  authProvider?: string;
 }
 
 export async function getAdminUsers(params: GetUsersParams = {}): Promise<PagedResult<AdminUser>> {
-  const { page = 1, pageSize = 20, search, role, kpssType } = params;
+  const { page = 1, pageSize = 20, search, role, kpssType, authProvider } = params;
   const { data } = await apiClient.get<PagedResult<AdminUser>>("/admin/users", {
     params: {
       page,
@@ -18,6 +19,7 @@ export async function getAdminUsers(params: GetUsersParams = {}): Promise<PagedR
       ...(search ? { search } : {}),
       ...(role ? { role } : {}),
       ...(kpssType ? { kpssType } : {}),
+      ...(authProvider ? { authProvider } : {}),
     },
   });
   return data;

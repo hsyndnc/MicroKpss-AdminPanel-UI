@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserDetailSheet } from "./_components/UserDetailSheet";
+import { AuthProviderBadge } from "@/components/shared/AuthProviderBadge";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import type { AdminUser } from "@/lib/types";
@@ -33,6 +34,12 @@ const KPSS_OPTIONS = [
   { value: "Onlisans", label: "Önlisans" },
   { value: "Ortaogretim", label: "Ortaöğretim" },
 ];
+const PROVIDER_OPTIONS = [
+  { value: "all", label: "Tüm Sağlayıcılar" },
+  { value: "Google", label: "Google" },
+  { value: "Apple", label: "Apple" },
+  { value: "Email", label: "Normal Mail" },
+];
 
 function UsersContent() {
   const searchParams = useSearchParams();
@@ -42,6 +49,7 @@ function UsersContent() {
   const search = searchParams.get("search") ?? "";
   const role = searchParams.get("role") ?? "all";
   const kpssType = searchParams.get("kpssType") ?? "all";
+  const authProvider = searchParams.get("authProvider") ?? "all";
 
   const [searchInput, setSearchInput] = useState(search);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
@@ -51,6 +59,7 @@ function UsersContent() {
     search: search || undefined,
     role: role === "all" ? undefined : role,
     kpssType: kpssType === "all" ? undefined : kpssType,
+    authProvider: authProvider === "all" ? undefined : authProvider,
   });
 
   function setQueryParam(key: string, value: string) {
@@ -92,6 +101,12 @@ function UsersContent() {
             {KPSS_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={authProvider} items={PROVIDER_OPTIONS} onValueChange={(v) => v && setQueryParam("authProvider", v)}>
+          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {PROVIDER_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       {isLoading ? (
@@ -105,6 +120,7 @@ function UsersContent() {
                 <TableHead>E-posta</TableHead>
                 <TableHead>Rol</TableHead>
                 <TableHead>KPSS Türü</TableHead>
+                <TableHead>Giriş Yöntemi</TableHead>
                 <TableHead>Kayıt Tarihi</TableHead>
               </TableRow>
             </TableHeader>
@@ -115,6 +131,7 @@ function UsersContent() {
                   <TableCell>{u.email}</TableCell>
                   <TableCell><Badge className={roleColor[u.role]}>{roleLabel[u.role]}</Badge></TableCell>
                   <TableCell className="text-gray-600">{u.kpssType ? kpssLabel[u.kpssType] ?? u.kpssType : "—"}</TableCell>
+                  <TableCell><AuthProviderBadge provider={u.authProvider} /></TableCell>
                   <TableCell className="text-sm text-gray-600">
                     {format(new Date(u.createdAt), "d MMM yyyy", { locale: tr })}
                   </TableCell>
@@ -122,7 +139,7 @@ function UsersContent() {
               ))}
               {data?.items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-gray-400">Kullanıcı bulunamadı</TableCell>
+                  <TableCell colSpan={6} className="text-center py-8 text-gray-400">Kullanıcı bulunamadı</TableCell>
                 </TableRow>
               )}
             </TableBody>

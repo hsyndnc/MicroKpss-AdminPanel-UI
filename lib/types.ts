@@ -45,6 +45,7 @@ export interface AdminUser {
   role: UserRole;
   kpssType?: KpssType;
   createdAt: string;
+  authProvider?: "Google" | "Apple" | "Email";
 }
 
 export interface AdminUserDetail {
