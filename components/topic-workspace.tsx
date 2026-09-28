@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAdminCategories } from "@/lib/api/categories";
-import { saveTopics, generateFromTopic, generateFromSource, getPipelineJob, reviewTopics, type TopicTree, type TopicSubtopic, type Suggestion } from "@/lib/api/pipeline";
+import { saveTopics, generateFromTopic, generateFromSource, getPipelineJob, cancelPipelineJob, reviewTopics, type TopicTree, type TopicSubtopic, type Suggestion } from "@/lib/api/pipeline";
 import { TopicTreeEditor, moveNode, visibleSuggestions } from "@/components/topic-tree-editor";
 import { SuggestionPreview } from "@/components/suggestion-preview";
 import type { AdminCategory } from "@/lib/types";
@@ -18,7 +18,6 @@ export function TopicWorkspace({
   const router = useRouter();
   const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [selectedDersId, setSelectedDersId] = useState("");
-  const [selectedKonuId, setSelectedKonuId] = useState("");
   const [selectedNodeId, setSelectedNodeId] = useState("");
   const [mode, setMode] = useState<"all" | "topic">("all");
   const [count, setCount] = useState(10);
@@ -33,10 +32,65 @@ export function TopicWorkspace({
   const [progress, setProgress] = useState<{ done: number; total: number; current: string }>(
     { done: 0, total: 0, current: "" }
   );
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelled, setCancelled] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const jobIdRef = useRef<string | null>(null);  // İptal isteği için etkin job_id
+  const jobKey = `pipeline-gen-job:${sourceId}`;
+
+  // "Tüm kaynaktan üret" job'ının ilerleme yoklamasını kurar. job_id localStorage'da
+  // tutulduğundan reload/logout sonrası da bu fonksiyonla kaldığı yerden devam eder.
+  function startJobPolling(jobId: string) {
+    if (pollRef.current) clearInterval(pollRef.current);
+    jobIdRef.current = jobId;  // İptal isteği bu job'a gider
+    setPhase("generating");    // hem üretim hem reload-resume yolu buradan generating'e girer
+    pollRef.current = setInterval(async () => {
+      try {
+        const job = await getPipelineJob(jobId);
+        setProgress({ done: job.done ?? 0, total: job.total ?? 0, current: job.current ?? "" });
+        // "cancelled": iptal edilen iş de kısmi sonuçla biter → done ekranı, iptal notuyla.
+        if (job.status === "done" || job.status === "cancelled") {
+          clearInterval(pollRef.current!);
+          localStorage.removeItem(jobKey);
+          setCancelling(false);
+          if (job.export?.error) {
+            setErrorMsg(`Sorular üretildi ama kaydedilemedi: ${job.export.error}`);
+            setPhase("error");
+            return;
+          }
+          setResultCount(job.export?.imported ?? job.count ?? 0);
+          setCancelled(job.status === "cancelled");
+          setPhase("done");
+        } else if (job.status === "error") {
+          clearInterval(pollRef.current!);
+          localStorage.removeItem(jobKey);
+          setCancelling(false);
+          setErrorMsg(job.error ?? "Üretim sırasında hata.");
+          setPhase("error");
+        }
+      } catch (err) {
+        clearInterval(pollRef.current!);
+        localStorage.removeItem(jobKey);
+        setCancelling(false);
+        // Job yok (ör. pipeline yeniden başladı) → sessizce idle; başka hata → göster.
+        if (axios.isAxiosError(err) && err.response?.status === 404) {
+          setPhase("idle");
+        } else {
+          setErrorMsg("Üretim durumu alınamadı.");
+          setPhase("error");
+        }
+      }
+    }, 2000);
+  }
 
   useEffect(() => { getAdminCategories().then(setCategories); }, []);
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+  // Reload/geri geliş: bu kaynak için kayıtlı çalışan iş varsa ilerleme çubuğunu geri getir.
+  useEffect(() => {
+    const saved = localStorage.getItem(jobKey);
+    if (saved) queueMicrotask(() => startJobPolling(saved));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sourceId]);
 
   // Görünür öneriler + etkin seçim (seçili öneri listeden düşerse ilkine döner).
   const visibleSugs = visibleSuggestions(tree, tree.suggestions ?? []);
@@ -47,7 +101,6 @@ export function TopicWorkspace({
 
   const rootIds = new Set(categories.filter((c) => !c.parentCategoryId).map((c) => c.id));
   const dersler = categories.filter((c) => c.parentCategoryId && rootIds.has(c.parentCategoryId));
-  const konular = categories.filter((c) => c.parentCategoryId === selectedDersId);
 
   // Parent (gruplama) + tüm çocuklar seçilebilir; girinti derinliği gösterir.
   // Parent seçilince backend where=parent_id ile tüm çocukların içeriğini çeker.
@@ -109,13 +162,13 @@ export function TopicWorkspace({
     return handleGenerateFromSource();
   }
 
-  // Mevcut davranış: seçilen tek düğümden, seçilen Konu kategorisine üret.
+  // Seçilen tek ağaç düğümünden üret; sorular seçilen Ders'e kaydedilir.
   async function handleGenerateFromNode() {
-    if (!selectedNodeId || !selectedKonuId) return;
+    if (!selectedNodeId || !selectedDersId) return;
     try {
       setPhase("generating");
       await saveTopics(sourceId, tree); // üretimden önce düzeltmeleri kaydet
-      const res = await generateFromTopic(sourceId, selectedNodeId, { count, category_id: selectedKonuId });
+      const res = await generateFromTopic(sourceId, selectedNodeId, { count, category_id: selectedDersId });
       if (res.export?.error) {
         setErrorMsg(`Sorular üretildi ama kaydedilemedi: ${res.export.error}`);
         setPhase("error");
@@ -134,6 +187,8 @@ export function TopicWorkspace({
   async function handleGenerateFromSource() {
     if (!selectedDersId) return;
     try {
+      setCancelled(false);
+      setCancelling(false);
       setPhase("generating");
       setProgress({ done: 0, total: 0, current: "" });
       await saveTopics(sourceId, tree); // üretimden önce düzeltmeleri kaydet
@@ -143,33 +198,24 @@ export function TopicWorkspace({
         setPhase("error");
         return;
       }
-      pollRef.current = setInterval(async () => {
-        try {
-          const job = await getPipelineJob(job_id);
-          setProgress({ done: job.done ?? 0, total: job.total ?? 0, current: job.current ?? "" });
-          if (job.status === "done") {
-            clearInterval(pollRef.current!);
-            if (job.export?.error) {
-              setErrorMsg(`Sorular üretildi ama kaydedilemedi: ${job.export.error}`);
-              setPhase("error");
-              return;
-            }
-            setResultCount(job.export?.imported ?? job.count ?? 0);
-            setPhase("done");
-          } else if (job.status === "error") {
-            clearInterval(pollRef.current!);
-            setErrorMsg(job.error ?? "Üretim sırasında hata.");
-            setPhase("error");
-          }
-        } catch {
-          clearInterval(pollRef.current!);
-          setErrorMsg("Üretim durumu alınamadı.");
-          setPhase("error");
-        }
-      }, 2000);
+      localStorage.setItem(jobKey, job_id);
+      startJobPolling(job_id);
     } catch {
       setErrorMsg("Üretim başlatılamadı.");
       setPhase("error");
+    }
+  }
+
+  // İptal: pipeline'a cancel isteği gider; iş bayrağı görüp durur ve kısmi sonucu
+  // kaydeder. Ekranı polling "cancelled" durumunu görünce sonlandırır. İstek
+  // başarısız olursa iş sürebilir → cancelling'i bırak, kullanıcı tekrar deneyebilir.
+  async function handleCancelGeneration() {
+    if (!jobIdRef.current) return;
+    try {
+      setCancelling(true);
+      await cancelPipelineJob(jobIdRef.current);
+    } catch {
+      setCancelling(false);
     }
   }
 
@@ -237,25 +283,13 @@ export function TopicWorkspace({
         <div className="space-y-1">
           <Label>Ders (kayıt hedefi)</Label>
           <Select items={dersler.map((d) => ({ value: d.id, label: d.name }))}
-                  onValueChange={(v) => { setSelectedDersId(v as string); setSelectedKonuId(""); }}>
+                  onValueChange={(v) => setSelectedDersId(v as string)}>
             <SelectTrigger className="w-full"><SelectValue placeholder="Ders seç..." /></SelectTrigger>
             <SelectContent>
               {dersler.map((d) => (<SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>))}
             </SelectContent>
           </Select>
         </div>
-        {mode === "topic" && selectedDersId && (
-          <div className="space-y-1">
-            <Label>Konu (kayıt hedefi)</Label>
-            <Select items={konular.map((k) => ({ value: k.id, label: k.name }))}
-                    onValueChange={(v) => setSelectedKonuId(v as string)}>
-              <SelectTrigger className="w-full"><SelectValue placeholder="Konu seç..." /></SelectTrigger>
-              <SelectContent>
-                {konular.map((k) => (<SelectItem key={k.id} value={k.id}>{k.name}</SelectItem>))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
         {mode === "topic" && (
           <div className="space-y-1">
             <Label>Hangi konudan üretilsin?</Label>
@@ -281,11 +315,17 @@ export function TopicWorkspace({
                    style={{ width: progress.total > 0
                      ? `${Math.round((progress.done / progress.total) * 100)}%` : "0%" }} />
             </div>
-            <p className="text-xs text-gray-500">
-              {progress.total > 0
-                ? `${progress.done}/${progress.total}${progress.current ? ` — ${progress.current}` : ""}`
-                : "Üretim başlatılıyor..."}
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-gray-500">
+                {progress.total > 0
+                  ? `${progress.done}/${progress.total}${progress.current ? ` — ${progress.current}` : ""}`
+                  : "Üretim başlatılıyor..."}
+              </p>
+              <Button variant="outline" size="sm" disabled={cancelling}
+                      onClick={handleCancelGeneration}>
+                {cancelling ? "İptal ediliyor..." : "İptal"}
+              </Button>
+            </div>
           </div>
         )}
         {mode === "topic" && (
@@ -297,14 +337,17 @@ export function TopicWorkspace({
         )}
         <Button className="w-full" onClick={handleGenerate}
                 disabled={phase === "generating" ||
-                  (mode === "all" ? !selectedDersId : (!selectedNodeId || !selectedKonuId))}>
+                  (mode === "all" ? !selectedDersId : (!selectedNodeId || !selectedDersId))}>
           {phase === "generating" ? "Üretiliyor..." : "Soru Üret"}
         </Button>
 
         {phase === "done" && (
           <div className="space-y-2">
-            <div className="rounded-md bg-green-50 text-green-700 text-sm p-3">
-              ✅ {resultCount} soru veritabanına eklendi.{" "}
+            <div className={`rounded-md text-sm p-3 ${cancelled
+              ? "bg-amber-50 text-amber-700" : "bg-green-50 text-green-700"}`}>
+              {cancelled
+                ? `⏹️ İptal edildi — ${resultCount} soru kaydedildi.`
+                : `✅ ${resultCount} soru veritabanına eklendi.`}{" "}
               <button className="underline" onClick={() => router.push("/questions?status=PendingReview")}>
                 Bekleyenleri gör
               </button>
