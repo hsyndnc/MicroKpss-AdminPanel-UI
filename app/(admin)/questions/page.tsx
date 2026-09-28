@@ -1,9 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { useQuestions, useApproveQuestion, useRejectQuestion } from "@/lib/hooks/useQuestions";
 import { deleteQuestion } from "@/lib/api/questions";
+import { getAdminCategories } from "@/lib/api/categories";
+import type { AdminCategory } from "@/lib/types";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { VerificationBadge } from "@/components/shared/VerificationBadge";
 import { SourceBadge } from "@/components/shared/SourceBadge";
@@ -46,12 +48,20 @@ function QuestionsContent() {
   const verification = searchParams.get("verification") ?? "";
   const aiPassed = verification === "gecti";
   const source = searchParams.get("source") ?? "all";
+  const categoryId = searchParams.get("categoryId") ?? "all";
   const page = Number(searchParams.get("page") ?? "1");
+
+  const [categories, setCategories] = useState<AdminCategory[]>([]);
+
+  useEffect(() => {
+    getAdminCategories().then(setCategories);
+  }, []);
 
   const { data, isLoading } = useQuestions({
     status: status === "all" ? undefined : status,
     verification: verification || undefined,
     source: source === "all" ? undefined : source,
+    categoryId: categoryId === "all" ? undefined : categoryId,
     page,
     pageSize: 20,
   });
@@ -151,7 +161,7 @@ function QuestionsContent() {
         <QuestionStats onStatusFilter={(s) => setQueryParam("status", s)} />
       </ClientOnly>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <Select value={status} items={STATUS_OPTIONS} onValueChange={(v) => v && setQueryParam("status", v)}>
           <SelectTrigger className="w-40">
             <SelectValue />
@@ -171,6 +181,31 @@ function QuestionsContent() {
             {SOURCE_OPTIONS.map((o) => (
               <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={categoryId}
+          items={[
+            { value: "all", label: "Tüm Dersler" },
+            ...categories
+              .filter((c) => c.parentCategoryId)
+              .map((c) => ({ value: c.id, label: c.name })),
+          ]}
+          onValueChange={(v) => v && setQueryParam("categoryId", v)}
+        >
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tüm Dersler</SelectItem>
+            {categories
+              .filter((c) => c.parentCategoryId)
+              .map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
           </SelectContent>
         </Select>
 
