@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { useQuestions, useApproveQuestion, useRejectQuestion } from "@/lib/hooks/useQuestions";
@@ -57,14 +57,16 @@ function QuestionsContent() {
     getAdminCategories().then(setCategories);
   }, []);
 
-  const { data, isLoading } = useQuestions({
+  const queryParams = useMemo(() => ({
     status: status === "all" ? undefined : status,
     verification: verification || undefined,
     source: source === "all" ? undefined : source,
     categoryId: categoryId === "all" ? undefined : categoryId,
     page,
     pageSize: 20,
-  });
+  }), [status, verification, source, categoryId, page]);
+
+  const { data, isLoading } = useQuestions(queryParams);
 
   const approveMutation = useApproveQuestion();
   const rejectMutation = useRejectQuestion();
