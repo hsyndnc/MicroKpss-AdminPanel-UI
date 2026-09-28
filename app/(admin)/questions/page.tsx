@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useQuestions, useApproveQuestion, useRejectQuestion } from "@/lib/hooks/useQuestions";
 import { deleteQuestion } from "@/lib/api/questions";
 import { getAdminCategories } from "@/lib/api/categories";
@@ -43,6 +43,7 @@ const SOURCE_OPTIONS = [
 function QuestionsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const qc = useQueryClient();
 
   const status = searchParams.get("status") ?? "PendingReview";
   const verification = searchParams.get("verification") ?? "";
@@ -80,6 +81,8 @@ function QuestionsContent() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteQuestion(id),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-questions"] });
+      qc.invalidateQueries({ queryKey: ["admin-stats"] });
       toast.success("Soru silindi.");
     },
     onError: () => {
@@ -148,6 +151,11 @@ function QuestionsContent() {
   const sourceLabel = SOURCE_OPTIONS.find((o) => o.value === source)?.label;
   const categoryLabel = categories.find((c) => c.id === categoryId)?.name;
   const hasActiveFilters = status !== "PendingReview" || source !== "all" || categoryId !== "all" || aiPassed;
+  const currentUrl = searchParams.toString();
+
+  function navigateToDetail(id: string) {
+    router.push(`/questions/${id}?from=${encodeURIComponent(currentUrl)}`);
+  }
 
   function clearAllFilters() {
     router.push("/questions");
@@ -295,7 +303,7 @@ function QuestionsContent() {
             </TableHeader>
             <TableBody>
               {(data?.items ?? []).map((q) => (
-                <TableRow key={q.id} className="cursor-pointer hover:bg-gray-50" onClick={() => router.push(`/questions/${q.id}`)}>
+                <TableRow key={q.id} className="cursor-pointer hover:bg-gray-50" onClick={() => navigateToDetail(q.id)}>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <Checkbox checked={selected.has(q.id)} onCheckedChange={() => toggleSelect(q.id)} />
                   </TableCell>

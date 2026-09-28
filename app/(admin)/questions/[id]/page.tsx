@@ -1,5 +1,5 @@
 "use client";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -30,7 +30,18 @@ import type { ContentStatus, AiFixSuggestion, ReportReason } from "@/lib/types";
 export default function QuestionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const qc = useQueryClient();
+
+  const from = searchParams.get("from");
+
+  function goBack() {
+    if (from) {
+      router.push(`/questions?${from}`);
+    } else {
+      router.push("/questions");
+    }
+  }
   const [rejectOpen, setRejectOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [aiFixOpen, setAiFixOpen] = useState(false);
@@ -129,7 +140,7 @@ export default function QuestionDetailPage() {
       <div className="flex-1 space-y-6 overflow-auto p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => router.push("/questions")}>← Geri</Button>
+          <Button variant="ghost" size="sm" onClick={goBack}>← Geri</Button>
           <h1 className="text-xl font-bold">Soru Detayı</h1>
         </div>
         <div className="flex items-center gap-2">
