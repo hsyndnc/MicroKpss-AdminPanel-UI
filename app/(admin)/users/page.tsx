@@ -5,6 +5,7 @@ import { useUsers } from "@/lib/hooks/useUsers";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DataPagination } from "@/components/shared/DataPagination";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -77,6 +78,14 @@ function UsersContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchInput]);
 
+  const hasActiveFilters =
+    search !== "" || role !== "all" || kpssType !== "all" || authProvider !== "all";
+
+  function clearAllFilters() {
+    setSearchInput("");
+    router.push("/users");
+  }
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Kullanıcılar</h1>
@@ -107,6 +116,17 @@ function UsersContent() {
             {PROVIDER_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
           </SelectContent>
         </Select>
+
+        {hasActiveFilters && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={clearAllFilters}
+            className="ml-auto"
+          >
+            Filtreleri Temizle
+          </Button>
+        )}
       </div>
 
       {isLoading ? (

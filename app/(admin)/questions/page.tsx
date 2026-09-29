@@ -148,8 +148,6 @@ function QuestionsContent() {
   }
 
   const statusLabel = STATUS_OPTIONS.find((o) => o.value === status)?.label;
-  const sourceLabel = SOURCE_OPTIONS.find((o) => o.value === source)?.label;
-  const categoryLabel = categories.find((c) => c.id === categoryId)?.name;
   const hasActiveFilters = status !== "PendingReview" || source !== "all" || categoryId !== "all" || aiPassed;
   const currentUrl = searchParams.toString();
 
@@ -172,39 +170,6 @@ function QuestionsContent() {
         <Button onClick={() => setImportOpen(true)}>İçe Aktar</Button>
       </div>
 
-      {hasActiveFilters && (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
-          <div className="text-sm font-medium text-gray-700">Aktif Filtreler:</div>
-          <div className="flex flex-wrap gap-2">
-            {status !== "PendingReview" && (
-              <div className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm flex items-center gap-2 border border-gray-300">
-                Durum: {statusLabel}
-                <button onClick={() => setQueryParam("status", "PendingReview")} className="text-gray-500 hover:text-gray-900 font-bold">✕</button>
-              </div>
-            )}
-            {source !== "all" && (
-              <div className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm flex items-center gap-2 border border-gray-300">
-                Kaynak: {sourceLabel}
-                <button onClick={() => setQueryParam("source", "all")} className="text-gray-500 hover:text-gray-900 font-bold">✕</button>
-              </div>
-            )}
-            {categoryId !== "all" && (
-              <div className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm flex items-center gap-2 border border-gray-300">
-                Ders: {categoryLabel}
-                <button onClick={() => setQueryParam("categoryId", "all")} className="text-gray-500 hover:text-gray-900 font-bold">✕</button>
-              </div>
-            )}
-            {aiPassed && (
-              <div className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm flex items-center gap-2 border border-gray-300">
-                AI Doğrulanmış
-                <button onClick={() => toggleAiPassed(false)} className="text-gray-500 hover:text-gray-900 font-bold">✕</button>
-              </div>
-            )}
-            <button onClick={clearAllFilters} className="text-gray-500 hover:text-gray-700 text-sm underline ml-1">Tümünü Temizle</button>
-          </div>
-        </div>
-      )}
-
       <ClientOnly
         fallback={
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -214,7 +179,7 @@ function QuestionsContent() {
           </div>
         }
       >
-        <QuestionStats onStatusFilter={(s) => setQueryParam("status", s)} />
+        <QuestionStats status={status} onStatusFilter={(s) => setQueryParam("status", s)} />
       </ClientOnly>
 
       <div className="flex items-center gap-3 flex-wrap">
@@ -269,6 +234,17 @@ function QuestionsContent() {
           <Checkbox checked={aiPassed} onCheckedChange={(c) => toggleAiPassed(!!c)} />
           Yalnızca AI&apos;dan geçenler
         </label>
+
+        {hasActiveFilters && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={clearAllFilters}
+            className="ml-auto"
+          >
+            Filtreleri Temizle
+          </Button>
+        )}
       </div>
 
       <BulkActionBar

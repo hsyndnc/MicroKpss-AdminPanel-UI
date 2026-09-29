@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface QuestionStatsProps {
+  status?: string;
   onStatusFilter: (status: string) => void;
 }
 
-export function QuestionStats({ onStatusFilter }: QuestionStatsProps) {
+export function QuestionStats({ status, onStatusFilter }: QuestionStatsProps) {
   const { data, isLoading, isError } = useDashboardStats();
   const [expanded, setExpanded] = useState(false);
 
@@ -32,7 +33,11 @@ export function QuestionStats({ onStatusFilter }: QuestionStatsProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <Card
-        className="border-green-300 cursor-pointer hover:shadow-md transition-shadow"
+        className={`cursor-pointer transition-shadow ${
+          status === "Active"
+            ? "border-green-500 ring-2 ring-green-500 bg-green-50 shadow-md"
+            : "border-green-300 hover:shadow-md"
+        }`}
         onClick={() => onStatusFilter("Active")}
       >
         <CardHeader className="pb-2">
@@ -43,7 +48,11 @@ export function QuestionStats({ onStatusFilter }: QuestionStatsProps) {
         </CardContent>
       </Card>
       <Card
-        className="border-yellow-300 cursor-pointer hover:shadow-md transition-shadow"
+        className={`cursor-pointer transition-shadow ${
+          status === "PendingReview"
+            ? "border-yellow-500 ring-2 ring-yellow-500 bg-yellow-50 shadow-md"
+            : "border-yellow-300 hover:shadow-md"
+        }`}
         onClick={() => onStatusFilter("PendingReview")}
       >
         <CardHeader className="pb-2">
