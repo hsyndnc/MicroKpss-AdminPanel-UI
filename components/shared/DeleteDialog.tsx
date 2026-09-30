@@ -10,16 +10,24 @@ interface DeleteDialogProps {
   onConfirm: () => void;
   onCancel: () => void;
   loading?: boolean;
+  /** Toplu silmede seçili soru sayısı. Verilmezse tekil metin gösterilir. */
+  count?: number;
 }
 
-export function DeleteDialog({ open, onConfirm, onCancel, loading }: DeleteDialogProps) {
+export function DeleteDialog({ open, onConfirm, onCancel, loading, count }: DeleteDialogProps) {
+  const bulk = typeof count === "number" && count > 1;
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onCancel()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Soruyu Sil</DialogTitle>
+          <DialogTitle>{bulk ? `${count} Soruyu Sil` : "Soruyu Sil"}</DialogTitle>
           <DialogDescription>
-            Bu işlem geri alınamaz. Soru kalıcı olarak silinecektir.
+            {/* Silme backend'de soft delete (BaseRepository.Delete → IsDeleted=true):
+                kayıt veritabanında kalır ama listeden ve uygulamadan düşer. Panelde
+                geri alma yolu yok — "kalıcı olarak silinir" demek yanlış olurdu. */}
+            {bulk
+              ? `Seçili ${count} soru listeden ve uygulamadan kaldırılacak. Panelden geri alınamaz.`
+              : "Soru listeden ve uygulamadan kaldırılacak. Panelden geri alınamaz."}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

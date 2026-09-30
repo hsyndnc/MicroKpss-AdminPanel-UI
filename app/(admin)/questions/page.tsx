@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useQuestions, useApproveQuestion, useRejectQuestion } from "@/lib/hooks/useQuestions";
 import { deleteQuestion } from "@/lib/api/questions";
+import { withRateLimitRetry } from "@/lib/api/retry";
 import { getAdminCategories } from "@/lib/api/categories";
 import type { AdminCategory } from "@/lib/types";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -75,7 +76,8 @@ function QuestionsContent() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [rejectTarget, setRejectTarget] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkRunning, setBulkRunning] = useState<"approve" | "delete" | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
   const deleteMutation = useMutation({
@@ -121,14 +123,37 @@ function QuestionsContent() {
   }
 
   async function handleBulkApprove() {
-    setBulkLoading(true);
+    setBulkRunning("approve");
     let count = 0;
     for (const id of Array.from(selected)) {
-      try { await approveMutation.mutateAsync(id); count++; } catch {}
+      try { await withRateLimitRetry(() => approveMutation.mutateAsync(id)); count++; } catch {}
     }
-    setBulkLoading(false);
+    setBulkRunning(null);
     setSelected(new Set());
     toast.success(`${count} soru onaylandı.`);
+  }
+
+  /**
+   * Seçili soruları tek tek siler — backend'de toplu silme ucu YOK
+   * (bkz. docs/superpowers/specs/2026-09-29-toplu-soru-silme-backend-design.md).
+   * Hız sınırına takılan istekler beklenip yeniden denenir, yoksa sorular
+   * silinmeden "başarılı" sanılır. Liste her silmede değil, SONUNDA bir kez tazelenir.
+   */
+  async function handleBulkDelete() {
+    const ids = Array.from(selected);
+    setBulkDeleteOpen(false);
+    setBulkRunning("delete");
+    let ok = 0;
+    let fail = 0;
+    for (const id of ids) {
+      try { await withRateLimitRetry(() => deleteQuestion(id)); ok++; } catch { fail++; }
+    }
+    setBulkRunning(null);
+    setSelected(new Set());
+    qc.invalidateQueries({ queryKey: ["admin-questions"] });
+    qc.invalidateQueries({ queryKey: ["admin-stats"] });
+    if (fail === 0) toast.success(`${ok} soru silindi.`);
+    else toast.error(`${ok} soru silindi, ${fail} soru silinemedi.`);
   }
 
   async function handleApprove(id: string) {
@@ -250,8 +275,9 @@ function QuestionsContent() {
       <BulkActionBar
         count={selected.size}
         onApprove={handleBulkApprove}
+        onDelete={() => setBulkDeleteOpen(true)}
         onCancel={() => setSelected(new Set())}
-        loading={bulkLoading}
+        running={bulkRunning}
       />
 
       {isLoading ? (
@@ -347,6 +373,14 @@ function QuestionsContent() {
         onConfirm={() => deleteTarget && handleDelete(deleteTarget)}
         onCancel={() => setDeleteTarget(null)}
         loading={deleteMutation.isPending}
+      />
+
+      <DeleteDialog
+        open={bulkDeleteOpen}
+        count={selected.size}
+        onConfirm={handleBulkDelete}
+        onCancel={() => setBulkDeleteOpen(false)}
+        loading={bulkRunning === "delete"}
       />
 
       <ImportSheet open={importOpen} onClose={() => setImportOpen(false)} />
