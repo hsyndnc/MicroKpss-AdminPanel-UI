@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Download, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -12,7 +13,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { deleteSource, type SourceSummary } from "@/lib/api/pipeline";
+import { deleteSource, exportSourceQuestions, type SourceSummary } from "@/lib/api/pipeline";
 import { useSources } from "@/lib/hooks/useSources";
 
 export default function SourcesPage() {
@@ -21,6 +22,36 @@ export default function SourcesPage() {
   const [target, setTarget] = useState<SourceSummary | null>(null);
   const [alsoQuestions, setAlsoQuestions] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [downloading, setDownloading] = useState<string | null>(null);
+
+  /** Kaynağın sorularını panel import formatında JSON dosyası olarak indirir. */
+  async function handleDownload(source: SourceSummary) {
+    setDownloading(source.source_id);
+    let url: string | null = null;
+    try {
+      const questions = await exportSourceQuestions(source.source_id);
+      if (questions.length === 0) {
+        toast.info("Bu kaynaktan indirilecek soru yok.");
+        return;
+      }
+      const blob = new Blob([JSON.stringify(questions, null, 2)], {
+        type: "application/json",
+      });
+      url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${source.file_name.replace(/\.[^.]+$/, "")}-sorular.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success(`${questions.length} soru indirildi.`);
+    } catch {
+      toast.error("Sorular indirilemedi — pipeline servisine ulaşılamıyor.");
+    } finally {
+      if (url) URL.revokeObjectURL(url);
+      setDownloading(null);
+    }
+  }
 
   async function confirmDelete() {
     if (!target) return;
@@ -55,7 +86,7 @@ export default function SourcesPage() {
               <TableHead>Tarih</TableHead>
               <TableHead className="text-center">Konu</TableHead>
               <TableHead className="text-center">Soru</TableHead>
-              <TableHead className="w-10"></TableHead>
+              <TableHead className="w-24"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -69,10 +100,17 @@ export default function SourcesPage() {
                 <TableCell className="text-center">{s.topic_count}</TableCell>
                 <TableCell className="text-center"><Badge variant="secondary">{s.question_count}</Badge></TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
-                  <Button variant="ghost" size="sm"
-                          onClick={() => { setTarget(s); setAlsoQuestions(false); }}>
-                    <Trash2 className="h-4 w-4 text-red-500" />
-                  </Button>
+                  <div className="flex items-center justify-end gap-1">
+                    <Button variant="ghost" size="sm" title="Soruları indir"
+                            disabled={s.question_count === 0 || downloading === s.source_id}
+                            onClick={() => handleDownload(s)}>
+                      <Download className="h-4 w-4 text-gray-500" />
+                    </Button>
+                    <Button variant="ghost" size="sm" title="Kaynağı sil"
+                            onClick={() => { setTarget(s); setAlsoQuestions(false); }}>
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

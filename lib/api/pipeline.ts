@@ -141,3 +141,14 @@ export async function listSources(): Promise<SourceSummary[]> {
 export async function deleteSource(sourceId: string, deleteQuestions: boolean): Promise<void> {
   await pipelineClient.delete(`/sources/${sourceId}?delete_questions=${deleteQuestions}`);
 }
+
+/**
+ * Bir kaynaktan üretilmiş soruları panelin "Soru İçe Aktar" formatında getirir.
+ * Doğrulamadan geçmeyen sorular da gelir — eleme kullanıcıda.
+ */
+export async function exportSourceQuestions(sourceId: string): Promise<unknown[]> {
+  const { data } = await pipelineClient.get<unknown[]>(
+    `/questions/export?source_id=${encodeURIComponent(sourceId)}`,
+  );
+  return data;
+}
