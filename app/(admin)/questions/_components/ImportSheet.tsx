@@ -4,6 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 import { createQuestion } from "@/lib/api/questions";
+import { withRateLimitRetry } from "@/lib/api/retry";
 import { useCategories } from "@/lib/hooks/useCategories";
 import { CategoryCascadeSelect } from "@/components/shared/CategoryCascadeSelect";
 import {
@@ -16,6 +17,19 @@ import {
 
 type Step = "upload" | "preview" | "done";
 
+/**
+ * Başarısız gönderimin sebebini okunur hâle getirir. Eskiden yalnız sayı
+ * gösteriliyordu ("72 soru aktarılamadı") — sebebi görünmediği için 429'la
+ * kaybolan sorular veri hatası sanılmıştı.
+ */
+function describeFailure(error: unknown): string {
+  const res = (error as { response?: { status?: number; data?: unknown } })?.response;
+  if (!res) return (error as { message?: string })?.message ?? "sunucuya ulaşılamadı";
+  const data = res.data as { error?: string; title?: string } | string | undefined;
+  const detail = typeof data === "string" ? data : (data?.error ?? data?.title);
+  return detail ? `HTTP ${res.status} — ${detail}` : `HTTP ${res.status}`;
+}
+
 export function ImportSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [step, setStep] = useState<Step>("upload");
   const [valid, setValid] = useState<ImportQuestion[]>([]);
@@ -23,6 +37,8 @@ export function ImportSheet({ open, onClose }: { open: boolean; onClose: () => v
   const [loading, setLoading] = useState(false);
   const [imported, setImported] = useState(0);
   const [failed, setFailed] = useState(0);
+  const [sent, setSent] = useState(0);
+  const [failures, setFailures] = useState<string[]>([]);
   const [targetCategoryId, setTargetCategoryId] = useState("");
   const qc = useQueryClient();
   const { data: categories = [] } = useCategories();
@@ -52,20 +68,34 @@ export function ImportSheet({ open, onClose }: { open: boolean; onClose: () => v
 
   async function handleImport() {
     setLoading(true);
+    setSent(0);
+    setFailures([]);
     let ok = 0;
-    let fail = 0;
     let cursor = 0;
+    // Sebepler paylaşılan diziye yazılır; JS tek iş parçacıklı olduğu için havuz güvenli.
+    const fails: string[] = [];
     // Sınırlı eşzamanlılık: yüzlerce soruyu seri yerine küçük bir havuzla gönder.
+    // Backend giriş yapmış kullanıcıya dakikada 120 istek veriyor (kuyruk yok) →
+    // dar havuz + 429'da bekleyip yeniden deneme. Aksi hâlde sınırı aşan sorular
+    // "başarısız" sayılıp sessizce kaybolur.
     async function worker() {
       while (cursor < valid.length) {
+        const no = cursor + 1;
         const q = valid[cursor++];
-        try { await createQuestion(q); ok++; } catch { fail++; }
+        try {
+          await withRateLimitRetry(() => createQuestion(q));
+          ok++;
+        } catch (error) {
+          fails.push(`Soru ${no}: ${describeFailure(error)}`);
+        }
+        setSent(ok + fails.length);
       }
     }
-    await Promise.all(Array.from({ length: Math.min(6, valid.length) }, worker));
+    await Promise.all(Array.from({ length: Math.min(3, valid.length) }, worker));
     setLoading(false);
     setImported(ok);
-    setFailed(fail);
+    setFailed(fails.length);
+    setFailures(fails);
     setStep("done");
     qc.invalidateQueries({ queryKey: ["admin-questions"] });
     qc.invalidateQueries({ queryKey: ["admin-stats"] });
@@ -77,6 +107,8 @@ export function ImportSheet({ open, onClose }: { open: boolean; onClose: () => v
     setErrors([]);
     setImported(0);
     setFailed(0);
+    setSent(0);
+    setFailures([]);
     setTargetCategoryId("");
     onClose();
   }
@@ -177,11 +209,16 @@ export function ImportSheet({ open, onClose }: { open: boolean; onClose: () => v
                   </tbody>
                 </table>
               </div>
-              <div className="flex gap-3">
+              <div className="flex items-center gap-3">
                 <Button onClick={handleImport} disabled={loading || valid.length === 0}>
-                  {loading ? "Aktarılıyor..." : `Aktar (${valid.length} soru)`}
+                  {loading ? `Aktarılıyor... (${sent}/${valid.length})` : `Aktar (${valid.length} soru)`}
                 </Button>
-                <Button variant="outline" onClick={() => setStep("upload")}>Geri</Button>
+                <Button variant="outline" onClick={() => setStep("upload")} disabled={loading}>Geri</Button>
+                {loading && (
+                  <span className="text-xs text-gray-500">
+                    Sunucu hız sınırı nedeniyle beklenebilir — sekmeyi kapatma.
+                  </span>
+                )}
               </div>
             </div>
           )}
@@ -191,6 +228,12 @@ export function ImportSheet({ open, onClose }: { open: boolean; onClose: () => v
               <div className="text-5xl">✅</div>
               <p className="font-medium">{imported} soru PendingReview&apos;a eklendi</p>
               {failed > 0 && <p className="text-sm text-red-600">{failed} soru aktarılamadı</p>}
+              {failures.length > 0 && (
+                <div className="text-left bg-red-50 border border-red-200 rounded p-3 text-xs text-red-700 space-y-1">
+                  {failures.slice(0, 8).map((f, i) => <div key={i}>{f}</div>)}
+                  {failures.length > 8 && <div>...ve {failures.length - 8} hata daha</div>}
+                </div>
+              )}
               <Button
                 onClick={() => {
                   handleClose();
