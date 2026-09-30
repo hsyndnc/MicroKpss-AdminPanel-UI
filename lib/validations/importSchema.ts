@@ -10,6 +10,7 @@ export const importQuestionSchema = z.object({
   explanation: z.string().optional(),
   year: z.number().optional(),
   questionType: z.enum(["MultipleChoice", "TrueFalse"]).default("MultipleChoice"),
+  sourceText: z.string().optional(), // pipeline'ın ürettiği kaynak metin; inceleme ekranında gösterilir
 });
 
 export type ImportQuestion = z.infer<typeof importQuestionSchema>;
@@ -96,6 +97,13 @@ function pickYear(v: unknown): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
+/** Kaynak metni normalize et: boş/yoksa undefined, aksi halde kırpılmamış metin. */
+function pickSourceText(v: unknown): string | undefined {
+  if (v == null) return undefined;
+  const s = String(v);
+  return s.trim() === "" ? undefined : s;
+}
+
 /** JSON satırından doğru cevabı metin olarak çöz: correctAnswer > dogru_indeks > dogru_harf. */
 function resolveCorrectJson(row: Record<string, unknown>, options: string[]): string {
   const ca = row.correctAnswer;
@@ -145,6 +153,7 @@ export function parseImportFile(content: string, categoryMap: Map<string, string
       explanation: row.explanation != null ? String(row.explanation) : undefined,
       year: pickYear(row.year ?? row.yil),
       questionType: resolveType(row.questionType),
+      sourceText: pickSourceText(row.kaynak_metin ?? row.sourceText),
     };
     pushValidated(candidate, categoryId, rawCat, i + 1, valid, errors);
   });
@@ -165,6 +174,7 @@ const HEADERS = {
   explanation: ["aciklama", "explanation", "cozum", "izah"],
   year: ["yil", "year"],
   type: ["tip", "tur", "questiontype", "type"],
+  sourceText: ["kaynak", "kaynak metin", "kaynak_metin", "sourcetext", "source text"],
 };
 
 function matchField(header: string): keyof typeof HEADERS | null {
@@ -267,6 +277,7 @@ function rowsToResult(rows: Record<string, string>[], categoryMap: Map<string, s
       explanation: fields.explanation || undefined,
       year: fields.year ? Number(fields.year) : undefined,
       questionType: resolveType(fields.type),
+      sourceText: pickSourceText(fields.sourceText),
     };
     pushValidated(candidate, categoryId, categoryRaw, rowNo, valid, errors);
   });
