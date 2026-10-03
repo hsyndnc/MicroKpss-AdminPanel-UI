@@ -86,6 +86,15 @@ görünür, oysa burada "cevaplanmadı" ile "hayır" farklı şeyler):
 Seçim yapılmadan yayınla düğmesi pasif kalır. Sunucu da eksik alanı `400` ile
 reddediyor; istemci kapısı yalnız kullanıcıyı hata ekranından korumak için.
 
+**Başarılı yayından sonra seçim sıfırlanır** — radyo seçilmemiş hâle döner, düğme
+yeniden pasifleşir. Yoksa şu olur: admin esaslı bir sürüm yayınlar, sonra metinde bir
+yazım hatası görüp düzeltir ve tekrar yayınlar; seçim önceki değeri taşıdığı için ikinci
+yayın da esaslı sayılır ve **bir yazım hatası yüzünden tüm kullanıcılara ikinci kez onay
+ekranı çıkar**. Bölüm 4.3'ün engellemeye çalıştığı zarar, buradan geri gelir.
+
+Sekme değiştirme tarafı zaten kapalı: `app/(admin)/legal/page.tsx:48`'deki
+`key={activeType}` editörü remount ettiği için seçim de içerik gibi sıfırlanıyor.
+
 ### 4.5 Onay diyalogu
 "Esaslı değişiklik" seçiliyken yayınla'ya basılırsa onay sorulur:
 
