@@ -6,8 +6,18 @@
  * aştığında sorular sessizce kaybolmasın diye beklenip tekrar denenir.
  */
 
-/** Varsayılan bekleme aralıkları: pencere 1 dakika olduğu için sonuncusu onu aşar. */
-const BACKOFF_MS = [5_000, 15_000, 35_000, 65_000] as const;
+/**
+ * `Retry-After` yoksa kullanılan kör bekleme aralıkları. Backend penceresi 60 sn'de
+ * sıfırlandığı için adımlar kısa tutulur: tek bir uzun bekleme, açılan pencerenin
+ * tamamını uyuyarak geçirip kotayı boşa harcıyordu.
+ */
+const BACKOFF_MS = [5_000, 15_000, 20_000, 20_000, 20_000, 20_000] as const;
+
+/** Sunucu `Retry-After`'ı tam saniyeye yuvarlar → aşağı yuvarlanırsa kıl payı erken dönmemek için. */
+const RETRY_AFTER_BUFFER_MS = 1_000;
+
+/** Pencere 1 dakika; bundan uzun bir `Retry-After` bizim sınırlayıcımızdan gelmiyor demektir. */
+const RETRY_AFTER_MAX_MS = 70_000;
 
 const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -22,7 +32,10 @@ export function retryAfterMs(error: unknown): number | null {
     ?.response?.headers?.["retry-after"];
   if (raw == null) return null;
   const seconds = Number(raw);
-  return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : null;
+  if (!Number.isFinite(seconds) || seconds < 0) return null;
+  // Tampon aynı zamanda "0 saniye"yi beklemesiz yeniden denemeye çevirmeyi engeller:
+  // o hâlde denemeler milisaniyeler içinde tükenir ve soru kaybolur.
+  return Math.min(seconds * 1000 + RETRY_AFTER_BUFFER_MS, RETRY_AFTER_MAX_MS);
 }
 
 /**

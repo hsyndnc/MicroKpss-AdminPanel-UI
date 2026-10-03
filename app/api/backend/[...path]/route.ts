@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { ACCESS_COOKIE, REFRESH_COOKIE, setAuthCookies } from "@/lib/auth/cookies";
+import { proxyResponseHeaders } from "@/lib/api/proxy-headers";
 
 const BACKEND = process.env.BACKEND_URL;
 
@@ -42,14 +43,10 @@ async function handle(req: NextRequest, path: string[]) {
   }
 
   const payload = res.status === 204 || res.status === 304 ? null : await res.text();
-  const contentType = res.headers.get("content-type");
-  const headers: Record<string, string> = {};
-  if (contentType) headers["content-type"] = contentType;
-  else if (payload) headers["content-type"] = "application/json";
-  
+
   const out = new NextResponse(payload, {
     status: res.status,
-    headers,
+    headers: proxyResponseHeaders(res.headers, Boolean(payload)),
   });
   if (rotated) setAuthCookies(out, rotated.access, rotated.refresh);
   return out;
