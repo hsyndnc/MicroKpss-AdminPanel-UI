@@ -96,24 +96,34 @@ function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocumen
       toast.success("Yeni sürüm yayınlandı.");
     } catch (err) {
       const status = (err as { response?: { status?: number } })?.response?.status;
+      const backendMessage = (err as { response?: { data?: { error?: string } } })?.response
+        ?.data?.error;
+      const failed = () =>
+        toast.error(backendMessage ?? "Yayınlanamadı. Backend loglarını kontrol edin.");
+
+      // Backend yarış durumunu da doğrulama hatasını da `400` ile bildiriyor. Ayıran
+      // şey sunucudaki sürüm: gerçek yarışta editörün açtığı sürümün üstüne bir sürüm
+      // yayınlanmıştır. Eşitse (ya da metin hiç yok) yarış değil, gerçek bir hatadır.
       if (status === 400) {
         const mine = content;
         try {
           const fresh = await refetchLegal(type);
-          if (fresh) {
+          if (fresh && fresh.version !== loadedVersion) {
             setStaleDraft(mine);
             setContent(fresh.content);
             setLoadedVersion(fresh.version);
+            toast.error(
+              "Bu metin siz yazarken güncellendi, en son sürüm yüklendi — değişikliğinizi tekrar uygulayın."
+            );
+          } else {
+            failed();
           }
-          toast.error(
-            "Bu metin siz yazarken güncellendi, en son sürüm yüklendi — değişikliğinizi tekrar uygulayın."
-          );
         } catch {
-          toast.error("Yayınlanamadı. Backend loglarını kontrol edin.");
+          failed();
         }
         return;
       }
-      toast.error("Yayınlanamadı. Backend loglarını kontrol edin.");
+      failed();
     }
   }
 
