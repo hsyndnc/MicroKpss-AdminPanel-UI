@@ -1,7 +1,11 @@
 "use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useLegalDocument, usePublishLegalDocumentVersion } from "@/lib/hooks/useLegal";
+import {
+  useLegalDocument,
+  usePublishLegalDocumentVersion,
+  useRefetchLegalDocument,
+} from "@/lib/hooks/useLegal";
 import { toast } from "sonner";
 import type { LegalDocument, LegalDocumentType } from "@/lib/types";
 import { LEGAL_DOC_LABELS } from "@/lib/legalLabels";
@@ -56,6 +60,8 @@ function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocumen
   const [content, setContent] = useState(doc?.content ?? "");
   const [reconsent, setReconsent] = useState<"minor" | "material" | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [staleDraft, setStaleDraft] = useState<string | null>(null);
+  const refetchLegal = useRefetchLegalDocument();
   const publish = usePublishLegalDocumentVersion();
 
   function handlePublishClick() {
@@ -80,8 +86,22 @@ function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocumen
         requiresReconsent: reconsent === "material",
       });
       setReconsent(null);
+      setStaleDraft(null);
       toast.success("Yeni sürüm yayınlandı.");
-    } catch {
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 400) {
+        const mine = content;
+        const fresh = await refetchLegal(type);
+        if (fresh) {
+          setStaleDraft(mine);
+          setContent(fresh.content);
+        }
+        toast.error(
+          "Bu metin siz yazarken güncellendi, en son sürüm yüklendi — değişikliğinizi tekrar uygulayın."
+        );
+        return;
+      }
       toast.error("Yayınlanamadı. Backend loglarını kontrol edin.");
     }
   }
@@ -100,6 +120,29 @@ function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocumen
         className="w-full border rounded-lg p-4 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         placeholder="# Başlık&#10;&#10;Markdown içeriği buraya..."
       />
+      {staleDraft !== null && (
+        <div className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm">
+          <p className="font-medium">Yazdığınız metin korundu</p>
+          <p className="text-gray-600">
+            Yukarıdaki alanda şimdi sunucudaki en son sürüm duruyor. Kendi metninizi geri
+            yükleyip değişikliğinizi tekrar uygulayabilirsiniz.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setContent(staleDraft);
+                setStaleDraft(null);
+              }}
+            >
+              Geri yükle
+            </Button>
+            <Button variant="ghost" onClick={() => setStaleDraft(null)}>
+              Yoksay
+            </Button>
+          </div>
+        </div>
+      )}
       <fieldset className="space-y-3 rounded-lg border p-4">
         <legend className="px-1 text-sm font-medium">Değişikliğin niteliği</legend>
         <label className="flex cursor-pointer items-start gap-2 text-sm">

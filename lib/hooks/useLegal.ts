@@ -25,3 +25,12 @@ export function usePublishLegalDocumentVersion() {
       qc.invalidateQueries({ queryKey: ["legal", type] }),
   });
 }
+
+export function useRefetchLegalDocument() {
+  const qc = useQueryClient();
+  return async (type: LegalDocumentType) => {
+    const fresh = await getLegalDocument(type);
+    qc.setQueryData(["legal", type], fresh);
+    return fresh;
+  };
+}
