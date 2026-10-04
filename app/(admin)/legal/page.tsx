@@ -4,12 +4,12 @@ import { Button } from "@/components/ui/button";
 import { useLegalDocument, usePublishLegalDocumentVersion } from "@/lib/hooks/useLegal";
 import { toast } from "sonner";
 import type { LegalDocument, LegalDocumentType } from "@/lib/types";
+import { LEGAL_DOC_LABELS } from "@/lib/legalLabels";
+import { formatTrDate } from "@/lib/format";
 
-const DOC_TYPES: { type: LegalDocumentType; label: string }[] = [
-  { type: "PrivacyPolicy", label: "Gizlilik Politikası" },
-  { type: "TermsOfService", label: "Kullanım Koşulları" },
-  { type: "KvkkNotice", label: "KVKK Aydınlatma Metni" },
-];
+const DOC_TYPES: { type: LegalDocumentType; label: string }[] = (
+  ["PrivacyPolicy", "TermsOfService", "KvkkNotice", "ExplicitConsent"] as const
+).map((type) => ({ type, label: LEGAL_DOC_LABELS[type] }));
 
 export default function LegalPage() {
   const [activeType, setActiveType] = useState<LegalDocumentType>("PrivacyPolicy");
@@ -53,7 +53,6 @@ export default function LegalPage() {
 
 function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocument | null }) {
   const [content, setContent] = useState(doc?.content ?? "");
-  const [updatedAt, setUpdatedAt] = useState<string | null>(doc?.updatedAt ?? null);
   const [reconsent, setReconsent] = useState<"minor" | "material" | null>(null);
   const publish = usePublishLegalDocumentVersion();
 
@@ -64,12 +63,11 @@ function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocumen
     }
     if (!reconsent) return;
     try {
-      const saved = await publish.mutateAsync({
+      await publish.mutateAsync({
         type,
         content,
         requiresReconsent: reconsent === "material",
       });
-      setUpdatedAt(saved.updatedAt);
       setReconsent(null);
       toast.success("Yeni sürüm yayınlandı.");
     } catch {
@@ -79,6 +77,11 @@ function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocumen
 
   return (
     <div className="space-y-4">
+      <p className="text-sm text-gray-500">
+        {doc
+          ? `Sürüm ${doc.version} · ${formatTrDate(doc.updatedAt, "d MMMM yyyy")}'da güncellendi`
+          : "Henüz yayınlanmadı — yayınlamak sürüm 1'i oluşturur."}
+      </p>
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
@@ -120,12 +123,7 @@ function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocumen
           </span>
         </label>
       </fieldset>
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-gray-400">
-          {updatedAt
-            ? `Son güncelleme: ${new Date(updatedAt).toLocaleString("tr-TR")}`
-            : "Henüz kaydedilmemiş."}
-        </span>
+      <div className="flex items-center justify-end">
         <Button onClick={handlePublish} disabled={!reconsent || publish.isPending}>
           {publish.isPending ? "Yayınlanıyor..." : "Yeni sürüm yayınla"}
         </Button>
