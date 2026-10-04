@@ -11,6 +11,7 @@ import type { LegalDocument, LegalDocumentType } from "@/lib/types";
 import { LEGAL_DOC_LABELS } from "@/lib/legalLabels";
 import { formatTrDate } from "@/lib/format";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { backendErrorMessage } from "@/lib/apiError";
 
 const DOC_TYPES: { type: LegalDocumentType; label: string }[] = (
   ["PrivacyPolicy", "TermsOfService", "KvkkNotice", "ExplicitConsent"] as const
@@ -96,10 +97,10 @@ function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocumen
       toast.success("Yeni sürüm yayınlandı.");
     } catch (err) {
       const status = (err as { response?: { status?: number } })?.response?.status;
-      const backendMessage = (err as { response?: { data?: { error?: string } } })?.response
-        ?.data?.error;
       const failed = () =>
-        toast.error(backendMessage ?? "Yayınlanamadı. Backend loglarını kontrol edin.");
+        toast.error(
+          backendErrorMessage(err) ?? "Yayınlanamadı. Backend loglarını kontrol edin."
+        );
 
       // Backend yarış durumunu da doğrulama hatasını da `400` ile bildiriyor. Ayıran
       // şey sunucudaki sürüm: gerçek yarışta editörün açtığı sürümün üstüne bir sürüm
