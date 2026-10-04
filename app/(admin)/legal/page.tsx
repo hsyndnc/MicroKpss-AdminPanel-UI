@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import type { LegalDocument, LegalDocumentType } from "@/lib/types";
 import { LEGAL_DOC_LABELS } from "@/lib/legalLabels";
 import { formatTrDate } from "@/lib/format";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 const DOC_TYPES: { type: LegalDocumentType; label: string }[] = (
   ["PrivacyPolicy", "TermsOfService", "KvkkNotice", "ExplicitConsent"] as const
@@ -54,14 +55,24 @@ export default function LegalPage() {
 function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocument | null }) {
   const [content, setContent] = useState(doc?.content ?? "");
   const [reconsent, setReconsent] = useState<"minor" | "material" | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const publish = usePublishLegalDocumentVersion();
 
-  async function handlePublish() {
+  function handlePublishClick() {
     if (!content.trim()) {
       toast.error("İçerik boş olamaz.");
       return;
     }
     if (!reconsent) return;
+    if (reconsent === "material") {
+      setConfirmOpen(true);
+      return;
+    }
+    void doPublish();
+  }
+
+  async function doPublish() {
+    setConfirmOpen(false);
     try {
       await publish.mutateAsync({
         type,
@@ -124,10 +135,18 @@ function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocumen
         </label>
       </fieldset>
       <div className="flex items-center justify-end">
-        <Button onClick={handlePublish} disabled={!reconsent || publish.isPending}>
+        <Button onClick={handlePublishClick} disabled={!reconsent || publish.isPending}>
           {publish.isPending ? "Yayınlanıyor..." : "Yeni sürüm yayınla"}
         </Button>
       </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Esaslı değişiklik olarak yayınlanacak"
+        description="Bu sürüm esaslı değişiklik olarak yayınlanacak. Tüm kullanıcılar uygulamayı açtığında metni yeniden onaylamak zorunda kalacak. Devam edilsin mi?"
+        onConfirm={() => void doPublish()}
+        onCancel={() => setConfirmOpen(false)}
+        confirmLabel="Yayınla"
+      />
     </div>
   );
 }
