@@ -94,6 +94,12 @@ export interface LegalDocument {
   updatedAt: string;
 }
 
+export interface UserConsent {
+  type: LegalDocumentType;
+  version: number;
+  givenAt: string;
+}
+
 export interface AiFixSuggestion {
   body: string;
   options: string[];

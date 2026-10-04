@@ -26,3 +26,11 @@ export async function publishLegalDocumentVersion(
   });
   return data;
 }
+
+export async function getLegalDocumentVersion(
+  type: LegalDocumentType,
+  version: number
+): Promise<LegalDocument> {
+  const { data } = await apiClient.get<LegalDocument>(`/legal/${type}/versions/${version}`);
+  return data;
+}

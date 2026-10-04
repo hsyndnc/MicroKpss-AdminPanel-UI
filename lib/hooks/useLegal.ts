@@ -1,5 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getLegalDocument, publishLegalDocumentVersion } from "@/lib/api/legal";
+import {
+  getLegalDocument,
+  getLegalDocumentVersion,
+  publishLegalDocumentVersion,
+} from "@/lib/api/legal";
 import type { LegalDocumentType } from "@/lib/types";
 
 export function useLegalDocument(type: LegalDocumentType) {
@@ -33,4 +37,15 @@ export function useRefetchLegalDocument() {
     qc.setQueryData(["legal", type], fresh);
     return fresh;
   };
+}
+
+export function useLegalDocumentVersion(
+  type: LegalDocumentType | null,
+  version: number | null
+) {
+  return useQuery({
+    queryKey: ["legal-version", type, version],
+    queryFn: () => getLegalDocumentVersion(type!, version!),
+    enabled: !!type && version !== null,
+  });
 }
