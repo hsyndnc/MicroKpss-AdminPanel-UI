@@ -61,8 +61,13 @@ function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocumen
   const [reconsent, setReconsent] = useState<"minor" | "material" | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [staleDraft, setStaleDraft] = useState<string | null>(null);
+  const [loadedVersion, setLoadedVersion] = useState<number | null>(doc?.version ?? null);
   const refetchLegal = useRefetchLegalDocument();
   const publish = usePublishLegalDocumentVersion();
+
+  // Arka plan tazelemesi (pencere odağı) yeni bir sürüm getirdiyse textarea hâlâ eski
+  // sürümü gösteriyor; böyle yayınlamak diğer admin'in değişikliğini sessizce ezer.
+  const supersededBy = doc && doc.version !== loadedVersion ? doc : null;
 
   function handlePublishClick() {
     if (!content.trim()) {
@@ -80,11 +85,12 @@ function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocumen
   async function doPublish() {
     setConfirmOpen(false);
     try {
-      await publish.mutateAsync({
+      const saved = await publish.mutateAsync({
         type,
         content,
         requiresReconsent: reconsent === "material",
       });
+      setLoadedVersion(saved.version);
       setReconsent(null);
       setStaleDraft(null);
       toast.success("Yeni sürüm yayınlandı.");
@@ -92,14 +98,19 @@ function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocumen
       const status = (err as { response?: { status?: number } })?.response?.status;
       if (status === 400) {
         const mine = content;
-        const fresh = await refetchLegal(type);
-        if (fresh) {
-          setStaleDraft(mine);
-          setContent(fresh.content);
+        try {
+          const fresh = await refetchLegal(type);
+          if (fresh) {
+            setStaleDraft(mine);
+            setContent(fresh.content);
+            setLoadedVersion(fresh.version);
+          }
+          toast.error(
+            "Bu metin siz yazarken güncellendi, en son sürüm yüklendi — değişikliğinizi tekrar uygulayın."
+          );
+        } catch {
+          toast.error("Yayınlanamadı. Backend loglarını kontrol edin.");
         }
-        toast.error(
-          "Bu metin siz yazarken güncellendi, en son sürüm yüklendi — değişikliğinizi tekrar uygulayın."
-        );
         return;
       }
       toast.error("Yayınlanamadı. Backend loglarını kontrol edin.");
@@ -120,6 +131,32 @@ function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocumen
         className="w-full border rounded-lg p-4 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         placeholder="# Başlık&#10;&#10;Markdown içeriği buraya..."
       />
+      {supersededBy && (
+        <div className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm">
+          <p className="font-medium">
+            Bu metnin {supersededBy.version}. sürümü siz bu ekranı açtıktan sonra yayınlandı
+          </p>
+          <p className="text-gray-600">
+            Yukarıdaki alanda hâlâ sizin açtığınız sürüm duruyor. Böyle yayınlarsanız o
+            değişikliğin üstüne yazarsınız.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setStaleDraft(content);
+                setContent(supersededBy.content);
+                setLoadedVersion(supersededBy.version);
+              }}
+            >
+              Sunucudaki metni yükle
+            </Button>
+            <Button variant="ghost" onClick={() => setLoadedVersion(supersededBy.version)}>
+              Yoksay
+            </Button>
+          </div>
+        </div>
+      )}
       {staleDraft !== null && (
         <div className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm">
           <p className="font-medium">Yazdığınız metin korundu</p>
