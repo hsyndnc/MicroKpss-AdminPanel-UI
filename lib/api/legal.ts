@@ -8,7 +8,10 @@ export async function getLegalDocument(type: LegalDocumentType): Promise<LegalDo
   } catch (error: unknown) {
     if (error && typeof error === "object" && "response" in error) {
       const status = (error as { response?: { status?: number } }).response?.status;
-      if (status === 404) return null;
+      // 404: metin hiç yayınlanmamış. 400: backend bu belge türünü henüz tanımıyor
+      // (panel backend'den önce çıkıyor — spec §7). İkisi de "metin yok" demek;
+      // fırlatmak editörü hata dalında gizler ve boş yere yeniden deneme üretir.
+      if (status === 404 || status === 400) return null;
     }
     throw error;
   }
