@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useLegalDocument, useUpsertLegalDocument } from "@/lib/hooks/useLegal";
+import { useLegalDocument, usePublishLegalDocumentVersion } from "@/lib/hooks/useLegal";
 import { toast } from "sonner";
 import type { LegalDocument, LegalDocumentType } from "@/lib/types";
 
@@ -54,19 +54,26 @@ export default function LegalPage() {
 function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocument | null }) {
   const [content, setContent] = useState(doc?.content ?? "");
   const [updatedAt, setUpdatedAt] = useState<string | null>(doc?.updatedAt ?? null);
-  const upsert = useUpsertLegalDocument();
+  const [reconsent, setReconsent] = useState<"minor" | "material" | null>(null);
+  const publish = usePublishLegalDocumentVersion();
 
-  async function handleSave() {
+  async function handlePublish() {
     if (!content.trim()) {
       toast.error("İçerik boş olamaz.");
       return;
     }
+    if (!reconsent) return;
     try {
-      const saved = await upsert.mutateAsync({ type, content });
+      const saved = await publish.mutateAsync({
+        type,
+        content,
+        requiresReconsent: reconsent === "material",
+      });
       setUpdatedAt(saved.updatedAt);
-      toast.success("Kaydedildi.");
+      setReconsent(null);
+      toast.success("Yeni sürüm yayınlandı.");
     } catch {
-      toast.error("Kaydedilemedi. Backend loglarını kontrol edin.");
+      toast.error("Yayınlanamadı. Backend loglarını kontrol edin.");
     }
   }
 
@@ -79,14 +86,48 @@ function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocumen
         className="w-full border rounded-lg p-4 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         placeholder="# Başlık&#10;&#10;Markdown içeriği buraya..."
       />
+      <fieldset className="space-y-3 rounded-lg border p-4">
+        <legend className="px-1 text-sm font-medium">Değişikliğin niteliği</legend>
+        <label className="flex cursor-pointer items-start gap-2 text-sm">
+          <input
+            type="radio"
+            name={`reconsent-${type}`}
+            className="mt-1"
+            checked={reconsent === "minor"}
+            onChange={() => setReconsent("minor")}
+          />
+          <span>
+            <span className="font-medium">Esaslı değişiklik değil</span>
+            <span className="block text-gray-500">
+              Yazım/biçim düzeltmesi, kapsam aynı. Kullanıcılardan yeniden onay istenmez.
+            </span>
+          </span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-2 text-sm">
+          <input
+            type="radio"
+            name={`reconsent-${type}`}
+            className="mt-1"
+            checked={reconsent === "material"}
+            onChange={() => setReconsent("material")}
+          />
+          <span>
+            <span className="font-medium">Esaslı değişiklik</span>
+            <span className="block text-gray-500">
+              Kapsam genişliyor: yeni alıcı, yeni amaç, yeni ülke. Tüm kullanıcılara
+              yeniden onay sorulur.
+            </span>
+          </span>
+        </label>
+      </fieldset>
       <div className="flex items-center justify-between">
         <span className="text-xs text-gray-400">
           {updatedAt
             ? `Son güncelleme: ${new Date(updatedAt).toLocaleString("tr-TR")}`
             : "Henüz kaydedilmemiş."}
         </span>
-        <Button onClick={handleSave} disabled={upsert.isPending}>
-          {upsert.isPending ? "Kaydediliyor..." : "Kaydet"}
+        <Button onClick={handlePublish} disabled={!reconsent || publish.isPending}>
+          {publish.isPending ? "Yayınlanıyor..." : "Yeni sürüm yayınla"}
         </Button>
       </div>
     </div>

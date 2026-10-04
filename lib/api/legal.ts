@@ -14,7 +14,15 @@ export async function getLegalDocument(type: LegalDocumentType): Promise<LegalDo
   }
 }
 
-export async function upsertLegalDocument(type: LegalDocumentType, content: string): Promise<LegalDocument> {
-  const { data } = await apiClient.put<LegalDocument>("/admin/legal", { type, content });
+export async function publishLegalDocumentVersion(
+  type: LegalDocumentType,
+  content: string,
+  requiresReconsent: boolean
+): Promise<LegalDocument> {
+  const { data } = await apiClient.put<LegalDocument>("/admin/legal", {
+    type,
+    content,
+    requiresReconsent,
+  });
   return data;
 }
