@@ -9,11 +9,10 @@ import { useUserDetail, useUpdateUserRole, useUserConsents } from "@/lib/hooks/u
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useLegalDocumentVersion } from "@/lib/hooks/useLegal";
+import { LegalVersionDialog, type LegalVersionTarget } from "@/components/shared/LegalVersionDialog";
 import { LEGAL_DOC_LABELS } from "@/lib/legalLabels";
 import { formatTrDate } from "@/lib/format";
-import type { AdminUser, LegalDocumentType, UserRole } from "@/lib/types";
+import type { AdminUser, UserRole } from "@/lib/types";
 
 const roleLabel: Record<string, string> = { Standard: "Standart", Premium: "Premium", Admin: "Admin" };
 const kpssLabel: Record<string, string> = { Lisans: "Lisans", Onlisans: "Önlisans", Ortaogretim: "Ortaöğretim" };
@@ -112,11 +111,9 @@ function UserDetailBody({ user }: { user: AdminUser }) {
   );
 }
 
-type ConsentTarget = { type: LegalDocumentType; version: number };
-
 function ConsentHistory({ userId }: { userId: string }) {
   const { data, isLoading, isError } = useUserConsents(userId);
-  const [selected, setSelected] = useState<ConsentTarget | null>(null);
+  const [selected, setSelected] = useState<LegalVersionTarget | null>(null);
 
   return (
     <div className="mt-6 border-t pt-4 px-1 space-y-2">
@@ -145,44 +142,8 @@ function ConsentHistory({ userId }: { userId: string }) {
           ))}
         </ul>
       )}
-      <ConsentTextDialog target={selected} onClose={() => setSelected(null)} />
+      <LegalVersionDialog target={selected} onClose={() => setSelected(null)} />
     </div>
-  );
-}
-
-function ConsentTextDialog({
-  target,
-  onClose,
-}: {
-  target: ConsentTarget | null;
-  onClose: () => void;
-}) {
-  const { data, isLoading, isError } = useLegalDocumentVersion(
-    target?.type ?? null,
-    target?.version ?? null
-  );
-
-  return (
-    <Dialog open={!!target} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>
-            {target
-              ? `${LEGAL_DOC_LABELS[target.type] ?? target.type} — sürüm ${target.version}`
-              : ""}
-          </DialogTitle>
-        </DialogHeader>
-        {isLoading ? (
-          <Skeleton className="h-64" />
-        ) : isError ? (
-          <p className="text-sm text-gray-400">Bu sürümün metni bulunamadı.</p>
-        ) : (
-          <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap font-mono text-xs">
-            {data?.content}
-          </pre>
-        )}
-      </DialogContent>
-    </Dialog>
   );
 }
 

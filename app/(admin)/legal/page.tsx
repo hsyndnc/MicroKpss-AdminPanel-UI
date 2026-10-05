@@ -11,6 +11,7 @@ import type { LegalDocument, LegalDocumentType } from "@/lib/types";
 import { LEGAL_DOC_LABELS } from "@/lib/legalLabels";
 import { formatTrDate } from "@/lib/format";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { LegalVersionDialog, type LegalVersionTarget } from "@/components/shared/LegalVersionDialog";
 import { backendErrorMessage } from "@/lib/apiError";
 
 const DOC_TYPES: { type: LegalDocumentType; label: string }[] = (
@@ -135,6 +136,7 @@ function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocumen
           ? `Sürüm ${doc.version} · ${formatTrDate(doc.updatedAt, "d MMMM yyyy")}'da güncellendi`
           : "Henüz yayınlanmadı — yayınlamak sürüm 1'i oluşturur."}
       </p>
+      <VersionHistory type={type} currentVersion={doc?.version ?? null} />
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
@@ -239,5 +241,50 @@ function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocumen
         confirmLabel="Yayınla"
       />
     </div>
+  );
+}
+
+function VersionHistory({
+  type,
+  currentVersion,
+}: {
+  type: LegalDocumentType;
+  currentVersion: number | null;
+}) {
+  const [selected, setSelected] = useState<LegalVersionTarget | null>(null);
+
+  // Sürümler append-only ve boşluksuz (backend her yayında max+1 yazıyor, silme yok) —
+  // bu yüzden 1..currentVersion-1 aralığını listelemek bir "tüm sürümleri getir" ucuna
+  // gerek kalmadan güvenli.
+  if (!currentVersion || currentVersion <= 1) {
+    return null;
+  }
+
+  const pastVersions = Array.from(
+    { length: currentVersion - 1 },
+    (_, i) => currentVersion - 1 - i
+  );
+
+  return (
+    <details className="group rounded-lg border">
+      <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium">
+        <span>Geçmiş sürümler ({pastVersions.length})</span>
+        <span className="text-gray-400 transition-transform group-open:rotate-180">▾</span>
+      </summary>
+      <ul className="divide-y border-t px-4">
+        {pastVersions.map((v) => (
+          <li key={v} className="flex items-center justify-between gap-2 py-2 text-sm">
+            <span>Sürüm {v}</span>
+            <button
+              onClick={() => setSelected({ type, version: v })}
+              className="text-blue-600 hover:underline"
+            >
+              Görüntüle
+            </button>
+          </li>
+        ))}
+      </ul>
+      <LegalVersionDialog target={selected} onClose={() => setSelected(null)} />
+    </details>
   );
 }
