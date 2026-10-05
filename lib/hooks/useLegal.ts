@@ -41,11 +41,12 @@ export function useRefetchLegalDocument() {
 
 export function useLegalDocumentVersion(
   type: LegalDocumentType | null,
-  version: number | null
+  version: number | null,
+  enabled = true
 ) {
   return useQuery({
     queryKey: ["legal-version", type, version],
     queryFn: () => getLegalDocumentVersion(type!, version!),
-    enabled: !!type && version !== null,
+    enabled: enabled && !!type && version !== null,
   });
 }

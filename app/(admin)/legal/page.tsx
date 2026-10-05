@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   useLegalDocument,
+  useLegalDocumentVersion,
   usePublishLegalDocumentVersion,
   useRefetchLegalDocument,
 } from "@/lib/hooks/useLegal";
@@ -252,6 +253,7 @@ function VersionHistory({
   currentVersion: number | null;
 }) {
   const [selected, setSelected] = useState<LegalVersionTarget | null>(null);
+  const [open, setOpen] = useState(false);
 
   // Sürümler append-only ve boşluksuz (backend her yayında max+1 yazıyor, silme yok) —
   // bu yüzden 1..currentVersion-1 aralığını listelemek bir "tüm sürümleri getir" ucuna
@@ -266,25 +268,60 @@ function VersionHistory({
   );
 
   return (
-    <details className="group rounded-lg border">
+    <details
+      className="group rounded-lg border"
+      open={open}
+      onToggle={(e) => setOpen(e.currentTarget.open)}
+    >
       <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium">
         <span>Geçmiş sürümler ({pastVersions.length})</span>
         <span className="text-gray-400 transition-transform group-open:rotate-180">▾</span>
       </summary>
       <ul className="divide-y border-t px-4">
         {pastVersions.map((v) => (
-          <li key={v} className="flex items-center justify-between gap-2 py-2 text-sm">
-            <span>Sürüm {v}</span>
-            <button
-              onClick={() => setSelected({ type, version: v })}
-              className="text-blue-600 hover:underline"
-            >
-              Görüntüle
-            </button>
-          </li>
+          <VersionHistoryRow
+            key={v}
+            type={type}
+            version={v}
+            enabled={open}
+            onView={() => setSelected({ type, version: v })}
+          />
         ))}
       </ul>
       <LegalVersionDialog target={selected} onClose={() => setSelected(null)} />
     </details>
+  );
+}
+
+function VersionHistoryRow({
+  type,
+  version,
+  enabled,
+  onView,
+}: {
+  type: LegalDocumentType;
+  version: number;
+  enabled: boolean;
+  onView: () => void;
+}) {
+  const { data } = useLegalDocumentVersion(type, version, enabled);
+
+  return (
+    <li className="flex items-center justify-between gap-2 py-2 text-sm">
+      <span className="flex items-center gap-2">
+        <span>Sürüm {version}</span>
+        {data && (
+          <span className="text-gray-400">· {formatTrDate(data.updatedAt, "d MMMM yyyy")}</span>
+        )}
+        {data?.requiresReconsent && (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+            Esaslı değişiklik
+          </span>
+        )}
+      </span>
+      <button onClick={onView} className="text-blue-600 hover:underline">
+        Görüntüle
+      </button>
+    </li>
   );
 }

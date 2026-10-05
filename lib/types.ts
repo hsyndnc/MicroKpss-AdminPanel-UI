@@ -92,6 +92,7 @@ export interface LegalDocument {
   content: string;
   version: number;
   updatedAt: string;
+  requiresReconsent?: boolean;
 }
 
 export interface UserConsent {
