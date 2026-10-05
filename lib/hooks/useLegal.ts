@@ -1,5 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getLegalDocument, upsertLegalDocument } from "@/lib/api/legal";
+import {
+  getLegalDocument,
+  getLegalDocumentVersion,
+  publishLegalDocumentVersion,
+} from "@/lib/api/legal";
 import type { LegalDocumentType } from "@/lib/types";
 
 export function useLegalDocument(type: LegalDocumentType) {
@@ -9,12 +13,40 @@ export function useLegalDocument(type: LegalDocumentType) {
   });
 }
 
-export function useUpsertLegalDocument() {
+export function usePublishLegalDocumentVersion() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ type, content }: { type: LegalDocumentType; content: string }) =>
-      upsertLegalDocument(type, content),
+    mutationFn: ({
+      type,
+      content,
+      requiresReconsent,
+    }: {
+      type: LegalDocumentType;
+      content: string;
+      requiresReconsent: boolean;
+    }) => publishLegalDocumentVersion(type, content, requiresReconsent),
     onSuccess: (_, { type }) =>
       qc.invalidateQueries({ queryKey: ["legal", type] }),
+  });
+}
+
+export function useRefetchLegalDocument() {
+  const qc = useQueryClient();
+  return async (type: LegalDocumentType) => {
+    const fresh = await getLegalDocument(type);
+    qc.setQueryData(["legal", type], fresh);
+    return fresh;
+  };
+}
+
+export function useLegalDocumentVersion(
+  type: LegalDocumentType | null,
+  version: number | null,
+  enabled = true
+) {
+  return useQuery({
+    queryKey: ["legal-version", type, version],
+    queryFn: () => getLegalDocumentVersion(type!, version!),
+    enabled: enabled && !!type && version !== null,
   });
 }

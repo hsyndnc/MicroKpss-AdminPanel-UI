@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import type { AdminUser, AdminUserDetail, PagedResult, UserRole } from "@/lib/types";
+import type { AdminUser, AdminUserDetail, PagedResult, UserConsent, UserRole } from "@/lib/types";
 
 export interface GetUsersParams {
   page?: number;
@@ -32,4 +32,9 @@ export async function getAdminUserById(id: string): Promise<AdminUserDetail> {
 
 export async function updateUserRole(id: string, role: UserRole): Promise<void> {
   await apiClient.put(`/admin/users/${id}/role`, { role });
+}
+
+export async function getUserConsents(id: string): Promise<UserConsent[]> {
+  const { data } = await apiClient.get<UserConsent[]>(`/admin/users/${id}/consents`);
+  return data;
 }
