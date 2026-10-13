@@ -18,7 +18,6 @@ import { QuestionStats } from "./_components/QuestionStats";
 import { ClientOnly } from "@/components/shared/ClientOnly";
 import { Button } from "@/components/ui/button";
 import { DataPagination } from "@/components/shared/DataPagination";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,21 +25,11 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import type { ContentStatus } from "@/lib/types";
-import { Check, X, Pencil, Trash2 } from "lucide-react";
+import { Check, X, Pencil, Trash2, SlidersHorizontal } from "lucide-react";
 import { Suspense } from "react";
-
-const STATUS_OPTIONS = [
-  { value: "PendingReview", label: "Bekliyor" },
-  { value: "Active", label: "Aktif" },
-  { value: "Rejected", label: "Reddedildi" },
-  { value: "all", label: "Tümü" },
-];
-
-const SOURCE_OPTIONS = [
-  { value: "all", label: "Tümü" },
-  { value: "Service", label: "Servis" },
-  { value: "Import", label: "İmport" },
-];
+import { QuestionFilters, STATUS_OPTIONS } from "./_components/QuestionFilters";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
 
 function QuestionsContent() {
   const searchParams = useSearchParams();
@@ -80,6 +69,7 @@ function QuestionsContent() {
   const [bulkRunning, setBulkRunning] = useState<"approve" | "delete" | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteQuestion(id),
@@ -174,7 +164,12 @@ function QuestionsContent() {
   }
 
   const statusLabel = STATUS_OPTIONS.find((o) => o.value === status)?.label;
-  const hasActiveFilters = status !== "PendingReview" || source !== "all" || categoryId !== "all" || aiPassed;
+  const activeFilterCount =
+    (status !== "PendingReview" ? 1 : 0) +
+    (source !== "all" ? 1 : 0) +
+    (categoryId !== "all" ? 1 : 0) +
+    (aiPassed ? 1 : 0);
+  const hasActiveFilters = activeFilterCount > 0;
   const currentUrl = searchParams.toString();
 
   function navigateToDetail(id: string) {
@@ -208,70 +203,58 @@ function QuestionsContent() {
         <QuestionStats status={status} onStatusFilter={(s) => setQueryParam("status", s)} />
       </ClientOnly>
 
-      <div className="flex items-center gap-3 flex-wrap">
-        <Select value={status} items={STATUS_OPTIONS} onValueChange={(v) => v && setQueryParam("status", v)}>
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={source} items={SOURCE_OPTIONS} onValueChange={(v) => v && setQueryParam("source", v)}>
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {SOURCE_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={categoryId}
-          items={[
-            { value: "all", label: "Tüm Dersler" },
-            ...categories
-              .filter((c) => c.parentCategoryId)
-              .map((c) => ({ value: c.id, label: c.name })),
-          ]}
-          onValueChange={(v) => v && setQueryParam("categoryId", v)}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tüm Dersler</SelectItem>
-            {categories
-              .filter((c) => c.parentCategoryId)
-              .map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
-
-        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
-          <Checkbox checked={aiPassed} onCheckedChange={(c) => toggleAiPassed(!!c)} />
-          Yalnızca AI&apos;dan geçenler
-        </label>
-
-        {hasActiveFilters && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={clearAllFilters}
-            className="ml-auto"
-          >
-            Filtreleri Temizle
-          </Button>
-        )}
+      <div className="hidden md:block">
+        <QuestionFilters
+          layout="row"
+          status={status}
+          source={source}
+          categoryId={categoryId}
+          aiPassed={aiPassed}
+          categories={categories}
+          hasActiveFilters={hasActiveFilters}
+          onStatusChange={(v) => setQueryParam("status", v)}
+          onSourceChange={(v) => setQueryParam("source", v)}
+          onCategoryChange={(v) => setQueryParam("categoryId", v)}
+          onAiPassedChange={toggleAiPassed}
+          onClear={clearAllFilters}
+        />
       </div>
+
+      <Button
+        variant="outline"
+        className="gap-2 md:hidden"
+        onClick={() => setFilterSheetOpen(true)}
+      >
+        <SlidersHorizontal className="h-4 w-4" />
+        Filtreler
+        {activeFilterCount > 0 && (
+          <Badge variant="secondary" className="px-1.5">{activeFilterCount}</Badge>
+        )}
+      </Button>
+
+      <Sheet open={filterSheetOpen} onOpenChange={setFilterSheetOpen}>
+        <SheetContent side="left" className="flex flex-col">
+          <SheetHeader>
+            <SheetTitle>Filtreler</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-auto px-4">
+            <QuestionFilters
+              layout="stack"
+              status={status}
+              source={source}
+              categoryId={categoryId}
+              aiPassed={aiPassed}
+              categories={categories}
+              hasActiveFilters={hasActiveFilters}
+              onStatusChange={(v) => setQueryParam("status", v)}
+              onSourceChange={(v) => setQueryParam("source", v)}
+              onCategoryChange={(v) => setQueryParam("categoryId", v)}
+              onAiPassedChange={toggleAiPassed}
+              onClear={() => { clearAllFilters(); setFilterSheetOpen(false); }}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <BulkActionBar
         count={selected.size}
