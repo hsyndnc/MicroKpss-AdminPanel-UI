@@ -270,7 +270,7 @@ function QuestionsContent() {
         <div className="rounded-md border bg-white">
           <Table>
             <TableHeader>
-              <TableRow className="bg-white">
+              <TableRow className="bg-white hover:bg-white">
                 <TableHead className="hidden w-10 sm:table-cell">
                   <Checkbox
                     checked={selected.size > 0 && selected.size === (data?.items.length ?? 0)}
@@ -293,7 +293,7 @@ function QuestionsContent() {
                   <TableCell className="hidden sm:table-cell">
                     <Checkbox checked={selected.has(q.id)} onCheckedChange={() => toggleSelect(q.id)} />
                   </TableCell>
-                  <TableCell className="sticky left-0 z-10 max-w-md bg-inherit">
+                  <TableCell className="sticky left-0 z-10 max-w-md bg-inherit whitespace-normal">
                     <button type="button" className="line-clamp-2 text-left" onClick={() => navigateToDetail(q.id)}>
                       {q.body}
                     </button>
@@ -309,21 +309,21 @@ function QuestionsContent() {
                   <TableCell className="text-right space-x-1">
                     {q.status === "PendingReview" && (
                       <>
-                        <Button size="sm" variant="outline" className="h-11 w-11 p-0 text-green-700 border-green-300 md:h-8 md:w-auto md:px-3" onClick={() => handleApprove(q.id)}>
-                          <Check className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">Onayla</span>
+                        <Button size="sm" variant="outline" className="h-11 w-11 p-0 text-green-700 border-green-300 md:h-7 md:w-auto md:px-2.5" onClick={() => handleApprove(q.id)}>
+                          <Check className="h-4 w-4" /><span className="sr-only md:not-sr-only md:ml-1">Onayla</span>
                         </Button>
-                        <Button size="sm" variant="outline" className="h-11 w-11 p-0 text-red-700 border-red-300 md:h-8 md:w-auto md:px-3" onClick={() => setRejectTarget(q.id)}>
-                          <X className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">Reddet</span>
+                        <Button size="sm" variant="outline" className="h-11 w-11 p-0 text-red-700 border-red-300 md:h-7 md:w-auto md:px-2.5" onClick={() => setRejectTarget(q.id)}>
+                          <X className="h-4 w-4" /><span className="sr-only md:not-sr-only md:ml-1">Reddet</span>
                         </Button>
                       </>
                     )}
                     {q.status === "Active" && (
-                      <Button size="sm" variant="outline" className="h-11 w-11 p-0 text-red-700 border-red-300 md:h-8 md:w-auto md:px-3" onClick={() => setDeleteTarget(q.id)}>
-                        <Trash2 className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">Sil</span>
+                      <Button size="sm" variant="outline" className="h-11 w-11 p-0 text-red-700 border-red-300 md:h-7 md:w-auto md:px-2.5" onClick={() => setDeleteTarget(q.id)}>
+                        <Trash2 className="h-4 w-4" /><span className="sr-only md:not-sr-only md:ml-1">Sil</span>
                       </Button>
                     )}
-                    <Button size="sm" variant="ghost" className="h-11 w-11 p-0 md:h-8 md:w-auto md:px-3" onClick={() => router.push(`/questions/${q.id}`)}>
-                      <Pencil className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">Düzenle</span>
+                    <Button size="sm" variant="ghost" className="h-11 w-11 p-0 md:h-7 md:w-auto md:px-2.5" onClick={() => router.push(`/questions/${q.id}`)}>
+                      <Pencil className="h-4 w-4" /><span className="sr-only md:not-sr-only md:ml-1">Düzenle</span>
                     </Button>
                   </TableCell>
                 </TableRow>

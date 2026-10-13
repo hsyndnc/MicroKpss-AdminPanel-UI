@@ -22,7 +22,7 @@ export default function DashboardPage() {
     .map((c) => ({
       ...c,
       categoryName:
-        isCompact && c.categoryName.length > 14
+        isCompact && c.categoryName?.length > 14
           ? `${c.categoryName.slice(0, 14)}…`
           : c.categoryName,
     }));

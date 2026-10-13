@@ -81,7 +81,7 @@ export default function SourcesPage() {
       ) : (
         <Table>
           <TableHeader>
-            <TableRow className="bg-white">
+            <TableRow className="bg-white hover:bg-white">
               <TableHead className="sticky left-0 z-10 bg-inherit">Dosya</TableHead>
               <TableHead className="hidden md:table-cell">Tarih</TableHead>
               <TableHead className="hidden text-center sm:table-cell">Konu</TableHead>
@@ -104,12 +104,12 @@ export default function SourcesPage() {
                 <TableCell className="text-center"><Badge variant="secondary">{s.question_count}</Badge></TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="sm" className="h-11 w-11 p-0 md:h-8 md:w-8" title="Soruları indir"
+                    <Button variant="ghost" size="sm" className="h-11 w-11 p-0 md:h-7 md:w-7" title="Soruları indir"
                             disabled={s.question_count === 0 || downloading === s.source_id}
                             onClick={() => handleDownload(s)}>
                       <Download className="h-4 w-4 text-gray-500" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-11 w-11 p-0 md:h-8 md:w-8" title="Kaynağı sil"
+                    <Button variant="ghost" size="sm" className="h-11 w-11 p-0 md:h-7 md:w-7" title="Kaynağı sil"
                             onClick={() => { setTarget(s); setAlsoQuestions(false); }}>
                       <Trash2 className="h-4 w-4 text-red-500" />
                     </Button>

@@ -137,7 +137,7 @@ export default function QuestionDetailPage() {
 
   return (
     <div className="flex flex-col">
-      <div className="flex-1 space-y-6 p-4 lg:p-6">
+      <div className="flex-1 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={goBack}>← Geri</Button>
@@ -259,7 +259,7 @@ export default function QuestionDetailPage() {
       </Form>
 
       {hasContext && (
-        <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+        <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
           {report && (
             <Card className="border-orange-300 bg-orange-50">
               <CardHeader className="pb-3">
@@ -323,7 +323,7 @@ export default function QuestionDetailPage() {
       </div>
       </div>
 
-      <div className="sticky bottom-0 border-t bg-white p-4 lg:px-6 lg:py-4">
+      <div className="sticky bottom-0 -mx-4 border-t bg-white px-4 py-4 lg:-mx-6 lg:px-6 lg:py-4">
         <div className="flex max-w-2xl flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <Button type="submit" form="question-form" className="w-full md:w-auto" disabled={updateMutation.isPending}>
             {updateMutation.isPending ? "Kaydediliyor..." : "Kaydet"}

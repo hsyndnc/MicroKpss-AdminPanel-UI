@@ -135,7 +135,7 @@ function UsersContent() {
         <div className="rounded-md border bg-white">
           <Table>
             <TableHeader>
-              <TableRow className="bg-white">
+              <TableRow className="bg-white hover:bg-white">
                 <TableHead className="sticky left-0 z-10 bg-inherit">Kullanıcı Adı</TableHead>
                 <TableHead className="hidden sm:table-cell">E-posta</TableHead>
                 <TableHead>Rol</TableHead>

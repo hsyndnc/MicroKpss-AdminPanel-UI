@@ -79,7 +79,7 @@ export default function CategoriesPage() {
         <div className="rounded-md border bg-white">
           <Table>
             <TableHeader>
-              <TableRow className="bg-white">
+              <TableRow className="bg-white hover:bg-white">
                 <TableHead className="sticky left-0 z-10 bg-inherit">İsim</TableHead>
                 <TableHead className="hidden md:table-cell">Üst Kategori</TableHead>
                 <TableHead className="hidden sm:table-cell">Aktif Soru</TableHead>
@@ -93,11 +93,11 @@ export default function CategoriesPage() {
                   <TableCell className="hidden text-gray-600 md:table-cell">{cat.parentCategoryName ?? "—"}</TableCell>
                   <TableCell className="hidden sm:table-cell">{cat.activeQuestionCount}</TableCell>
                   <TableCell className="text-right space-x-1">
-                    <Button size="sm" variant="outline" className="h-11 w-11 p-0 md:h-8 md:w-auto md:px-3" onClick={() => openEdit(cat)}>
-                      <Pencil className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">Düzenle</span>
+                    <Button size="sm" variant="outline" className="h-11 w-11 p-0 md:h-7 md:w-auto md:px-2.5" onClick={() => openEdit(cat)}>
+                      <Pencil className="h-4 w-4" /><span className="sr-only md:not-sr-only md:ml-1">Düzenle</span>
                     </Button>
-                    <Button size="sm" variant="outline" className="h-11 w-11 p-0 text-red-700 border-red-300 md:h-8 md:w-auto md:px-3" onClick={() => setDeleteTarget(cat)}>
-                      <Trash2 className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">Sil</span>
+                    <Button size="sm" variant="outline" className="h-11 w-11 p-0 text-red-700 border-red-300 md:h-7 md:w-auto md:px-2.5" onClick={() => setDeleteTarget(cat)}>
+                      <Trash2 className="h-4 w-4" /><span className="sr-only md:not-sr-only md:ml-1">Sil</span>
                     </Button>
                   </TableCell>
                 </TableRow>

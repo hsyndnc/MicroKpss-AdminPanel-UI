@@ -90,7 +90,7 @@ export default function ReportsPage() {
         <div className="rounded-md border bg-white">
           <Table>
             <TableHeader>
-              <TableRow className="bg-white">
+              <TableRow className="bg-white hover:bg-white">
                 <TableHead className="sticky left-0 z-10 bg-inherit">Soru</TableHead>
                 <TableHead className="hidden md:table-cell">Kategori</TableHead>
                 <TableHead className="text-center">Rapor</TableHead>
@@ -100,8 +100,8 @@ export default function ReportsPage() {
             </TableHeader>
             <TableBody>
               {reports.map((r) => (
-                <TableRow key={r.questionId} className="bg-white align-top">
-                  <TableCell className="sticky left-0 z-10 max-w-md bg-inherit">
+                <TableRow key={r.questionId} className="bg-white align-top hover:bg-gray-50">
+                  <TableCell className="sticky left-0 z-10 max-w-md bg-inherit whitespace-normal">
                     <button
                       className="text-left hover:underline line-clamp-2"
                       onClick={() => router.push(`/questions/${r.questionId}`)}
@@ -136,17 +136,17 @@ export default function ReportsPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-right space-x-1 whitespace-nowrap">
-                    <Button size="sm" variant="outline" className="h-11 w-11 p-0 text-green-700 border-green-300 md:h-8 md:w-auto md:px-3"
+                    <Button size="sm" variant="outline" className="h-11 w-11 p-0 text-green-700 border-green-300 md:h-7 md:w-auto md:px-2.5"
                             disabled={busy} onClick={() => handleApprove(r.questionId)}>
-                      <Check className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">Onayla</span>
+                      <Check className="h-4 w-4" /><span className="sr-only md:not-sr-only md:ml-1">Onayla</span>
                     </Button>
-                    <Button size="sm" variant="outline" className="h-11 w-11 p-0 text-red-700 border-red-300 md:h-8 md:w-auto md:px-3"
+                    <Button size="sm" variant="outline" className="h-11 w-11 p-0 text-red-700 border-red-300 md:h-7 md:w-auto md:px-2.5"
                             disabled={busy} onClick={() => setRejectTarget(r.questionId)}>
-                      <X className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">Reddet</span>
+                      <X className="h-4 w-4" /><span className="sr-only md:not-sr-only md:ml-1">Reddet</span>
                     </Button>
-                    <Button size="sm" variant="ghost" className="h-11 w-11 p-0 md:h-8 md:w-auto md:px-3"
+                    <Button size="sm" variant="ghost" className="h-11 w-11 p-0 md:h-7 md:w-auto md:px-2.5"
                             disabled={busy} onClick={() => setDismissTarget(r.questionId)}>
-                      <Undo2 className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">Yoksay</span>
+                      <Undo2 className="h-4 w-4" /><span className="sr-only md:not-sr-only md:ml-1">Yoksay</span>
                     </Button>
                   </TableCell>
                 </TableRow>
