@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import type { ContentStatus } from "@/lib/types";
+import { Check, X, Pencil, Trash2 } from "lucide-react";
 import { Suspense } from "react";
 
 const STATUS_OPTIONS = [
@@ -286,58 +287,60 @@ function QuestionsContent() {
         <div className="rounded-md border bg-white">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-10">
+              <TableRow className="bg-white">
+                <TableHead className="hidden w-10 sm:table-cell">
                   <Checkbox
                     checked={selected.size > 0 && selected.size === (data?.items.length ?? 0)}
                     onCheckedChange={toggleAll}
                   />
                 </TableHead>
-                <TableHead>Soru</TableHead>
-                <TableHead>Kategori</TableHead>
-                <TableHead>Zorluk</TableHead>
+                <TableHead className="sticky left-0 z-10 bg-inherit">Soru</TableHead>
+                <TableHead className="hidden sm:table-cell">Kategori</TableHead>
+                <TableHead className="hidden md:table-cell">Zorluk</TableHead>
                 <TableHead>Durum</TableHead>
-                <TableHead>AI Doğrulama</TableHead>
-                <TableHead>Kaynak</TableHead>
-                <TableHead>Tarih</TableHead>
+                <TableHead className="hidden md:table-cell">AI Doğrulama</TableHead>
+                <TableHead className="hidden lg:table-cell">Kaynak</TableHead>
+                <TableHead className="hidden lg:table-cell">Tarih</TableHead>
                 <TableHead className="text-right">Aksiyonlar</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {(data?.items ?? []).map((q) => (
-                <TableRow key={q.id} className="cursor-pointer hover:bg-gray-50" onClick={() => navigateToDetail(q.id)}>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
+                <TableRow key={q.id} className="bg-white hover:bg-gray-50">
+                  <TableCell className="hidden sm:table-cell">
                     <Checkbox checked={selected.has(q.id)} onCheckedChange={() => toggleSelect(q.id)} />
                   </TableCell>
-                  <TableCell className="max-w-md">
-                    <span className="line-clamp-2">{q.body}</span>
+                  <TableCell className="sticky left-0 z-10 max-w-md bg-inherit">
+                    <button type="button" className="line-clamp-2 text-left" onClick={() => navigateToDetail(q.id)}>
+                      {q.body}
+                    </button>
                   </TableCell>
-                  <TableCell className="text-sm text-gray-600">{q.categoryName}</TableCell>
-                  <TableCell className="text-sm">{q.difficulty}</TableCell>
+                  <TableCell className="hidden text-sm text-gray-600 sm:table-cell">{q.categoryName}</TableCell>
+                  <TableCell className="hidden text-sm md:table-cell">{q.difficulty}</TableCell>
                   <TableCell><StatusBadge status={q.status as ContentStatus} /></TableCell>
-                  <TableCell><VerificationBadge status={q.verificationStatus} /></TableCell>
-                  <TableCell><SourceBadge source={q.source} /></TableCell>
-                  <TableCell className="text-sm text-gray-600">
+                  <TableCell className="hidden md:table-cell"><VerificationBadge status={q.verificationStatus} /></TableCell>
+                  <TableCell className="hidden lg:table-cell"><SourceBadge source={q.source} /></TableCell>
+                  <TableCell className="hidden text-sm text-gray-600 lg:table-cell">
                     {format(new Date(q.createdAt), "d MMM yyyy", { locale: tr })}
                   </TableCell>
-                  <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
+                  <TableCell className="text-right space-x-1">
                     {q.status === "PendingReview" && (
                       <>
-                        <Button size="sm" variant="outline" className="text-green-700 border-green-300" onClick={() => handleApprove(q.id)}>
-                          Onayla
+                        <Button size="sm" variant="outline" className="h-11 w-11 p-0 text-green-700 border-green-300 md:h-8 md:w-auto md:px-3" onClick={() => handleApprove(q.id)}>
+                          <Check className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">Onayla</span>
                         </Button>
-                        <Button size="sm" variant="outline" className="text-red-700 border-red-300" onClick={() => setRejectTarget(q.id)}>
-                          Reddet
+                        <Button size="sm" variant="outline" className="h-11 w-11 p-0 text-red-700 border-red-300 md:h-8 md:w-auto md:px-3" onClick={() => setRejectTarget(q.id)}>
+                          <X className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">Reddet</span>
                         </Button>
                       </>
                     )}
                     {q.status === "Active" && (
-                      <Button size="sm" variant="outline" className="text-red-700 border-red-300" onClick={() => setDeleteTarget(q.id)}>
-                        Sil
+                      <Button size="sm" variant="outline" className="h-11 w-11 p-0 text-red-700 border-red-300 md:h-8 md:w-auto md:px-3" onClick={() => setDeleteTarget(q.id)}>
+                        <Trash2 className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">Sil</span>
                       </Button>
                     )}
-                    <Button size="sm" variant="ghost" onClick={() => router.push(`/questions/${q.id}`)}>
-                      Düzenle
+                    <Button size="sm" variant="ghost" className="h-11 w-11 p-0 md:h-8 md:w-auto md:px-3" onClick={() => router.push(`/questions/${q.id}`)}>
+                      <Pencil className="h-4 w-4 md:mr-1" /><span className="hidden md:inline">Düzenle</span>
                     </Button>
                   </TableCell>
                 </TableRow>
