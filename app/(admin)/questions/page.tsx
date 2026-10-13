@@ -18,7 +18,6 @@ import { QuestionStats } from "./_components/QuestionStats";
 import { ClientOnly } from "@/components/shared/ClientOnly";
 import { Button } from "@/components/ui/button";
 import { DataPagination } from "@/components/shared/DataPagination";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,20 +25,11 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import type { ContentStatus } from "@/lib/types";
+import { Check, X, Pencil, Trash2, SlidersHorizontal } from "lucide-react";
 import { Suspense } from "react";
-
-const STATUS_OPTIONS = [
-  { value: "PendingReview", label: "Bekliyor" },
-  { value: "Active", label: "Aktif" },
-  { value: "Rejected", label: "Reddedildi" },
-  { value: "all", label: "Tümü" },
-];
-
-const SOURCE_OPTIONS = [
-  { value: "all", label: "Tümü" },
-  { value: "Service", label: "Servis" },
-  { value: "Import", label: "İmport" },
-];
+import { QuestionFilters, STATUS_OPTIONS } from "./_components/QuestionFilters";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
 
 function QuestionsContent() {
   const searchParams = useSearchParams();
@@ -79,6 +69,7 @@ function QuestionsContent() {
   const [bulkRunning, setBulkRunning] = useState<"approve" | "delete" | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteQuestion(id),
@@ -173,7 +164,12 @@ function QuestionsContent() {
   }
 
   const statusLabel = STATUS_OPTIONS.find((o) => o.value === status)?.label;
-  const hasActiveFilters = status !== "PendingReview" || source !== "all" || categoryId !== "all" || aiPassed;
+  const activeFilterCount =
+    (status !== "PendingReview" ? 1 : 0) +
+    (source !== "all" ? 1 : 0) +
+    (categoryId !== "all" ? 1 : 0) +
+    (aiPassed ? 1 : 0);
+  const hasActiveFilters = activeFilterCount > 0;
   const currentUrl = searchParams.toString();
 
   function navigateToDetail(id: string) {
@@ -207,70 +203,58 @@ function QuestionsContent() {
         <QuestionStats status={status} onStatusFilter={(s) => setQueryParam("status", s)} />
       </ClientOnly>
 
-      <div className="flex items-center gap-3 flex-wrap">
-        <Select value={status} items={STATUS_OPTIONS} onValueChange={(v) => v && setQueryParam("status", v)}>
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={source} items={SOURCE_OPTIONS} onValueChange={(v) => v && setQueryParam("source", v)}>
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {SOURCE_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={categoryId}
-          items={[
-            { value: "all", label: "Tüm Dersler" },
-            ...categories
-              .filter((c) => c.parentCategoryId)
-              .map((c) => ({ value: c.id, label: c.name })),
-          ]}
-          onValueChange={(v) => v && setQueryParam("categoryId", v)}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tüm Dersler</SelectItem>
-            {categories
-              .filter((c) => c.parentCategoryId)
-              .map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
-
-        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
-          <Checkbox checked={aiPassed} onCheckedChange={(c) => toggleAiPassed(!!c)} />
-          Yalnızca AI&apos;dan geçenler
-        </label>
-
-        {hasActiveFilters && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={clearAllFilters}
-            className="ml-auto"
-          >
-            Filtreleri Temizle
-          </Button>
-        )}
+      <div className="hidden md:block">
+        <QuestionFilters
+          layout="row"
+          status={status}
+          source={source}
+          categoryId={categoryId}
+          aiPassed={aiPassed}
+          categories={categories}
+          hasActiveFilters={hasActiveFilters}
+          onStatusChange={(v) => setQueryParam("status", v)}
+          onSourceChange={(v) => setQueryParam("source", v)}
+          onCategoryChange={(v) => setQueryParam("categoryId", v)}
+          onAiPassedChange={toggleAiPassed}
+          onClear={clearAllFilters}
+        />
       </div>
+
+      <Button
+        variant="outline"
+        className="gap-2 md:hidden"
+        onClick={() => setFilterSheetOpen(true)}
+      >
+        <SlidersHorizontal className="h-4 w-4" />
+        Filtreler
+        {activeFilterCount > 0 && (
+          <Badge variant="secondary" className="px-1.5">{activeFilterCount}</Badge>
+        )}
+      </Button>
+
+      <Sheet open={filterSheetOpen} onOpenChange={setFilterSheetOpen}>
+        <SheetContent side="left" className="flex flex-col">
+          <SheetHeader>
+            <SheetTitle>Filtreler</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-auto px-4">
+            <QuestionFilters
+              layout="stack"
+              status={status}
+              source={source}
+              categoryId={categoryId}
+              aiPassed={aiPassed}
+              categories={categories}
+              hasActiveFilters={hasActiveFilters}
+              onStatusChange={(v) => setQueryParam("status", v)}
+              onSourceChange={(v) => setQueryParam("source", v)}
+              onCategoryChange={(v) => setQueryParam("categoryId", v)}
+              onAiPassedChange={toggleAiPassed}
+              onClear={() => { clearAllFilters(); setFilterSheetOpen(false); }}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <BulkActionBar
         count={selected.size}
@@ -286,58 +270,60 @@ function QuestionsContent() {
         <div className="rounded-md border bg-white">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-10">
+              <TableRow className="bg-white hover:bg-white">
+                <TableHead className="hidden w-10 sm:table-cell">
                   <Checkbox
                     checked={selected.size > 0 && selected.size === (data?.items.length ?? 0)}
                     onCheckedChange={toggleAll}
                   />
                 </TableHead>
-                <TableHead>Soru</TableHead>
-                <TableHead>Kategori</TableHead>
-                <TableHead>Zorluk</TableHead>
+                <TableHead className="sticky left-0 z-10 bg-inherit">Soru</TableHead>
+                <TableHead className="hidden sm:table-cell">Kategori</TableHead>
+                <TableHead className="hidden md:table-cell">Zorluk</TableHead>
                 <TableHead>Durum</TableHead>
-                <TableHead>AI Doğrulama</TableHead>
-                <TableHead>Kaynak</TableHead>
-                <TableHead>Tarih</TableHead>
+                <TableHead className="hidden md:table-cell">AI Doğrulama</TableHead>
+                <TableHead className="hidden lg:table-cell">Kaynak</TableHead>
+                <TableHead className="hidden lg:table-cell">Tarih</TableHead>
                 <TableHead className="text-right">Aksiyonlar</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {(data?.items ?? []).map((q) => (
-                <TableRow key={q.id} className="cursor-pointer hover:bg-gray-50" onClick={() => navigateToDetail(q.id)}>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
+                <TableRow key={q.id} className="bg-white hover:bg-gray-50">
+                  <TableCell className="hidden sm:table-cell">
                     <Checkbox checked={selected.has(q.id)} onCheckedChange={() => toggleSelect(q.id)} />
                   </TableCell>
-                  <TableCell className="max-w-md">
-                    <span className="line-clamp-2">{q.body}</span>
+                  <TableCell className="sticky left-0 z-10 max-w-md bg-inherit whitespace-normal">
+                    <button type="button" className="line-clamp-2 text-left" onClick={() => navigateToDetail(q.id)}>
+                      {q.body}
+                    </button>
                   </TableCell>
-                  <TableCell className="text-sm text-gray-600">{q.categoryName}</TableCell>
-                  <TableCell className="text-sm">{q.difficulty}</TableCell>
+                  <TableCell className="hidden text-sm text-gray-600 sm:table-cell">{q.categoryName}</TableCell>
+                  <TableCell className="hidden text-sm md:table-cell">{q.difficulty}</TableCell>
                   <TableCell><StatusBadge status={q.status as ContentStatus} /></TableCell>
-                  <TableCell><VerificationBadge status={q.verificationStatus} /></TableCell>
-                  <TableCell><SourceBadge source={q.source} /></TableCell>
-                  <TableCell className="text-sm text-gray-600">
+                  <TableCell className="hidden md:table-cell"><VerificationBadge status={q.verificationStatus} /></TableCell>
+                  <TableCell className="hidden lg:table-cell"><SourceBadge source={q.source} /></TableCell>
+                  <TableCell className="hidden text-sm text-gray-600 lg:table-cell">
                     {format(new Date(q.createdAt), "d MMM yyyy", { locale: tr })}
                   </TableCell>
-                  <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
+                  <TableCell className="text-right space-x-1">
                     {q.status === "PendingReview" && (
                       <>
-                        <Button size="sm" variant="outline" className="text-green-700 border-green-300" onClick={() => handleApprove(q.id)}>
-                          Onayla
+                        <Button size="sm" variant="outline" className="h-11 w-11 p-0 text-green-700 border-green-300 md:h-7 md:w-auto md:px-2.5" onClick={() => handleApprove(q.id)}>
+                          <Check className="h-4 w-4" /><span className="sr-only md:not-sr-only md:ml-1">Onayla</span>
                         </Button>
-                        <Button size="sm" variant="outline" className="text-red-700 border-red-300" onClick={() => setRejectTarget(q.id)}>
-                          Reddet
+                        <Button size="sm" variant="outline" className="h-11 w-11 p-0 text-red-700 border-red-300 md:h-7 md:w-auto md:px-2.5" onClick={() => setRejectTarget(q.id)}>
+                          <X className="h-4 w-4" /><span className="sr-only md:not-sr-only md:ml-1">Reddet</span>
                         </Button>
                       </>
                     )}
                     {q.status === "Active" && (
-                      <Button size="sm" variant="outline" className="text-red-700 border-red-300" onClick={() => setDeleteTarget(q.id)}>
-                        Sil
+                      <Button size="sm" variant="outline" className="h-11 w-11 p-0 text-red-700 border-red-300 md:h-7 md:w-auto md:px-2.5" onClick={() => setDeleteTarget(q.id)}>
+                        <Trash2 className="h-4 w-4" /><span className="sr-only md:not-sr-only md:ml-1">Sil</span>
                       </Button>
                     )}
-                    <Button size="sm" variant="ghost" onClick={() => router.push(`/questions/${q.id}`)}>
-                      Düzenle
+                    <Button size="sm" variant="ghost" className="h-11 w-11 p-0 md:h-7 md:w-auto md:px-2.5" onClick={() => router.push(`/questions/${q.id}`)}>
+                      <Pencil className="h-4 w-4" /><span className="sr-only md:not-sr-only md:ml-1">Düzenle</span>
                     </Button>
                   </TableCell>
                 </TableRow>

@@ -136,9 +136,9 @@ export default function QuestionDetailPage() {
     (question.verificationStatus === "supheli" && !!question.verificationNote);
 
   return (
-    <div className="-m-6 flex h-[calc(100%+3rem)] flex-col">
-      <div className="flex-1 space-y-6 overflow-auto p-6">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col">
+      <div className="flex-1 space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={goBack}>← Geri</Button>
           <h1 className="text-xl font-bold">Soru Detayı</h1>
@@ -259,7 +259,7 @@ export default function QuestionDetailPage() {
       </Form>
 
       {hasContext && (
-        <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+        <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
           {report && (
             <Card className="border-orange-300 bg-orange-50">
               <CardHeader className="pb-3">
@@ -323,24 +323,24 @@ export default function QuestionDetailPage() {
       </div>
       </div>
 
-      <div className="shrink-0 border-t bg-white px-6 py-4">
-        <div className="flex max-w-2xl items-center justify-between">
-          <Button type="submit" form="question-form" disabled={updateMutation.isPending}>
+      <div className="sticky bottom-0 -mx-4 border-t bg-white px-4 py-4 lg:-mx-6 lg:px-6 lg:py-4">
+        <div className="flex max-w-2xl flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <Button type="submit" form="question-form" className="w-full md:w-auto" disabled={updateMutation.isPending}>
             {updateMutation.isPending ? "Kaydediliyor..." : "Kaydet"}
           </Button>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 md:flex-row">
             {question.status === "PendingReview" && (
               <>
-                <Button type="button" className="bg-green-600 hover:bg-green-700" onClick={() => approveMutation.mutate()} disabled={approveMutation.isPending}>
+                <Button type="button" className="w-full bg-green-600 hover:bg-green-700 md:w-auto" onClick={() => approveMutation.mutate()} disabled={approveMutation.isPending}>
                   Onayla
                 </Button>
-                <Button type="button" variant="outline" className="text-red-700 border-red-300" onClick={() => setRejectOpen(true)}>
+                <Button type="button" variant="outline" className="w-full text-red-700 border-red-300 md:w-auto" onClick={() => setRejectOpen(true)}>
                   Reddet
                 </Button>
               </>
             )}
             {question.status === "Active" && (
-              <Button type="button" variant="outline" className="text-red-700 border-red-300" onClick={() => setDeleteOpen(true)}>
+              <Button type="button" variant="outline" className="w-full text-red-700 border-red-300 md:w-auto" onClick={() => setDeleteOpen(true)}>
                 Sil
               </Button>
             )}

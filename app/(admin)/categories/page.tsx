@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import type { AdminCategory } from "@/lib/types";
+import { Pencil, Trash2 } from "lucide-react";
 
 export default function CategoriesPage() {
   const { data: categories = [], isLoading } = useCategories();
@@ -78,22 +79,26 @@ export default function CategoriesPage() {
         <div className="rounded-md border bg-white">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>İsim</TableHead>
-                <TableHead>Üst Kategori</TableHead>
-                <TableHead>Aktif Soru</TableHead>
+              <TableRow className="bg-white hover:bg-white">
+                <TableHead className="sticky left-0 z-10 bg-inherit">İsim</TableHead>
+                <TableHead className="hidden md:table-cell">Üst Kategori</TableHead>
+                <TableHead className="hidden sm:table-cell">Aktif Soru</TableHead>
                 <TableHead className="text-right">Aksiyonlar</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {categories.map((cat) => (
-                <TableRow key={cat.id}>
-                  <TableCell className="font-medium">{cat.name}</TableCell>
-                  <TableCell className="text-gray-600">{cat.parentCategoryName ?? "—"}</TableCell>
-                  <TableCell>{cat.activeQuestionCount}</TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Button size="sm" variant="outline" onClick={() => openEdit(cat)}>Düzenle</Button>
-                    <Button size="sm" variant="outline" className="text-red-700 border-red-300" onClick={() => setDeleteTarget(cat)}>Sil</Button>
+                <TableRow key={cat.id} className="bg-white hover:bg-gray-50">
+                  <TableCell className="sticky left-0 z-10 bg-inherit font-medium">{cat.name}</TableCell>
+                  <TableCell className="hidden text-gray-600 md:table-cell">{cat.parentCategoryName ?? "—"}</TableCell>
+                  <TableCell className="hidden sm:table-cell">{cat.activeQuestionCount}</TableCell>
+                  <TableCell className="text-right space-x-1">
+                    <Button size="sm" variant="outline" className="h-11 w-11 p-0 md:h-7 md:w-auto md:px-2.5" onClick={() => openEdit(cat)}>
+                      <Pencil className="h-4 w-4" /><span className="sr-only md:not-sr-only md:ml-1">Düzenle</span>
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-11 w-11 p-0 text-red-700 border-red-300 md:h-7 md:w-auto md:px-2.5" onClick={() => setDeleteTarget(cat)}>
+                      <Trash2 className="h-4 w-4" /><span className="sr-only md:not-sr-only md:ml-1">Sil</span>
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}

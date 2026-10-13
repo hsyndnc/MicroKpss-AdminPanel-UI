@@ -7,16 +7,25 @@ import { useRouter } from "next/navigation";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
 
 export default function DashboardPage() {
   const { data, isLoading } = useDashboardStats();
   const { data: reports } = useReports();
   const router = useRouter();
+  const isCompact = useMediaQuery("(max-width: 639px)");
 
   const reportedCount = reports?.length ?? 0;
   const categoryData = [...(data?.categoryDistribution ?? [])]
     .sort((a, b) => b.count - a.count)
-    .slice(0, 10);
+    .slice(0, 10)
+    .map((c) => ({
+      ...c,
+      categoryName:
+        isCompact && c.categoryName?.length > 14
+          ? `${c.categoryName.slice(0, 14)}…`
+          : c.categoryName,
+    }));
 
   if (isLoading) {
     return (
@@ -98,7 +107,7 @@ export default function DashboardPage() {
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={categoryData} layout="vertical" margin={{ left: 8, right: 16 }}>
                   <XAxis type="number" allowDecimals={false} />
-                  <YAxis type="category" dataKey="categoryName" width={130} tick={{ fontSize: 12 }} />
+                  <YAxis type="category" dataKey="categoryName" width={isCompact ? 90 : 130} tick={{ fontSize: isCompact ? 11 : 12 }} />
                   <Tooltip />
                   <Bar dataKey="count" fill="#6366f1" radius={[0, 4, 4, 0]} />
                 </BarChart>

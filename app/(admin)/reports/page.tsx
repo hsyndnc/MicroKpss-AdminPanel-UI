@@ -14,6 +14,7 @@ import { useReports } from "@/lib/hooks/useReports";
 import { dismissReport } from "@/lib/api/reports";
 import { approveQuestion, rejectQuestion } from "@/lib/api/questions";
 import { REASON_LABELS } from "@/lib/constants";
+import { Check, X, Undo2 } from "lucide-react";
 import type { ReportReason } from "@/lib/types";
 
 export default function ReportsPage() {
@@ -89,18 +90,18 @@ export default function ReportsPage() {
         <div className="rounded-md border bg-white">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Soru</TableHead>
-                <TableHead>Kategori</TableHead>
+              <TableRow className="bg-white hover:bg-white">
+                <TableHead className="sticky left-0 z-10 bg-inherit">Soru</TableHead>
+                <TableHead className="hidden md:table-cell">Kategori</TableHead>
                 <TableHead className="text-center">Rapor</TableHead>
-                <TableHead>Sebepler</TableHead>
+                <TableHead className="hidden sm:table-cell">Sebepler</TableHead>
                 <TableHead className="text-right">Aksiyonlar</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {reports.map((r) => (
-                <TableRow key={r.questionId} className="align-top">
-                  <TableCell className="max-w-md">
+                <TableRow key={r.questionId} className="bg-white align-top hover:bg-gray-50">
+                  <TableCell className="sticky left-0 z-10 max-w-md bg-inherit whitespace-normal">
                     <button
                       className="text-left hover:underline line-clamp-2"
                       onClick={() => router.push(`/questions/${r.questionId}`)}
@@ -121,11 +122,11 @@ export default function ReportsPage() {
                       </ul>
                     )}
                   </TableCell>
-                  <TableCell className="text-sm text-gray-600">{r.categoryName ?? "—"}</TableCell>
+                  <TableCell className="hidden text-sm text-gray-600 md:table-cell">{r.categoryName ?? "—"}</TableCell>
                   <TableCell className="text-center">
                     <Badge variant="destructive">{r.reportCount}</Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     <div className="flex flex-wrap gap-1">
                       {Object.entries(r.reasonBreakdown).map(([reason, count]) => (
                         <Badge key={reason} variant="secondary" className="text-xs">
@@ -135,17 +136,17 @@ export default function ReportsPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-right space-x-1 whitespace-nowrap">
-                    <Button size="sm" variant="outline" className="text-green-700 border-green-300"
+                    <Button size="sm" variant="outline" className="h-11 w-11 p-0 text-green-700 border-green-300 md:h-7 md:w-auto md:px-2.5"
                             disabled={busy} onClick={() => handleApprove(r.questionId)}>
-                      Onayla
+                      <Check className="h-4 w-4" /><span className="sr-only md:not-sr-only md:ml-1">Onayla</span>
                     </Button>
-                    <Button size="sm" variant="outline" className="text-red-700 border-red-300"
+                    <Button size="sm" variant="outline" className="h-11 w-11 p-0 text-red-700 border-red-300 md:h-7 md:w-auto md:px-2.5"
                             disabled={busy} onClick={() => setRejectTarget(r.questionId)}>
-                      Reddet
+                      <X className="h-4 w-4" /><span className="sr-only md:not-sr-only md:ml-1">Reddet</span>
                     </Button>
-                    <Button size="sm" variant="ghost"
+                    <Button size="sm" variant="ghost" className="h-11 w-11 p-0 md:h-7 md:w-auto md:px-2.5"
                             disabled={busy} onClick={() => setDismissTarget(r.questionId)}>
-                      Yoksay
+                      <Undo2 className="h-4 w-4" /><span className="sr-only md:not-sr-only md:ml-1">Yoksay</span>
                     </Button>
                   </TableCell>
                 </TableRow>
