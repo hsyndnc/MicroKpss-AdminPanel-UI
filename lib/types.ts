@@ -81,12 +81,24 @@ export interface PagedResult<T> {
   pageSize: number;
 }
 
-export type LegalDocumentType = "PrivacyPolicy" | "TermsOfService" | "KvkkNotice";
+export type LegalDocumentType =
+  | "PrivacyPolicy"
+  | "TermsOfService"
+  | "KvkkNotice"
+  | "ExplicitConsent";
 
 export interface LegalDocument {
   type: LegalDocumentType;
   content: string;
+  version: number;
   updatedAt: string;
+  requiresReconsent?: boolean;
+}
+
+export interface UserConsent {
+  type: LegalDocumentType;
+  version: number;
+  givenAt: string;
 }
 
 export interface AiFixSuggestion {

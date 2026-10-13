@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getAdminUsers, getAdminUserById, updateUserRole, type GetUsersParams } from "@/lib/api/users";
+import { getAdminUsers, getAdminUserById, updateUserRole, getUserConsents, type GetUsersParams } from "@/lib/api/users";
 import type { UserRole } from "@/lib/types";
 
 export function useUsers(params: GetUsersParams = {}) {
@@ -25,5 +25,13 @@ export function useUpdateUserRole() {
       qc.invalidateQueries({ queryKey: ["admin-users"] });
       qc.invalidateQueries({ queryKey: ["admin-user", id] });
     },
+  });
+}
+
+export function useUserConsents(id: string | null) {
+  return useQuery({
+    queryKey: ["admin-user-consents", id],
+    queryFn: () => getUserConsents(id!),
+    enabled: !!id,
   });
 }

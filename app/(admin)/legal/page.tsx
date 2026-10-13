@@ -1,15 +1,23 @@
 "use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useLegalDocument, useUpsertLegalDocument } from "@/lib/hooks/useLegal";
+import {
+  useLegalDocument,
+  useLegalDocumentVersion,
+  usePublishLegalDocumentVersion,
+  useRefetchLegalDocument,
+} from "@/lib/hooks/useLegal";
 import { toast } from "sonner";
 import type { LegalDocument, LegalDocumentType } from "@/lib/types";
+import { LEGAL_DOC_LABELS } from "@/lib/legalLabels";
+import { formatTrDate } from "@/lib/format";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { LegalVersionDialog, type LegalVersionTarget } from "@/components/shared/LegalVersionDialog";
+import { backendErrorMessage } from "@/lib/apiError";
 
-const DOC_TYPES: { type: LegalDocumentType; label: string }[] = [
-  { type: "PrivacyPolicy", label: "Gizlilik Politikası" },
-  { type: "TermsOfService", label: "Kullanım Koşulları" },
-  { type: "KvkkNotice", label: "KVKK Aydınlatma Metni" },
-];
+const DOC_TYPES: { type: LegalDocumentType; label: string }[] = (
+  ["PrivacyPolicy", "TermsOfService", "KvkkNotice", "ExplicitConsent"] as const
+).map((type) => ({ type, label: LEGAL_DOC_LABELS[type] }));
 
 export default function LegalPage() {
   const [activeType, setActiveType] = useState<LegalDocumentType>("PrivacyPolicy");
@@ -53,25 +61,83 @@ export default function LegalPage() {
 
 function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocument | null }) {
   const [content, setContent] = useState(doc?.content ?? "");
-  const [updatedAt, setUpdatedAt] = useState<string | null>(doc?.updatedAt ?? null);
-  const upsert = useUpsertLegalDocument();
+  const [reconsent, setReconsent] = useState<"minor" | "material" | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [staleDraft, setStaleDraft] = useState<string | null>(null);
+  const [loadedVersion, setLoadedVersion] = useState<number | null>(doc?.version ?? null);
+  const refetchLegal = useRefetchLegalDocument();
+  const publish = usePublishLegalDocumentVersion();
 
-  async function handleSave() {
+  // Arka plan tazelemesi (pencere odağı) yeni bir sürüm getirdiyse textarea hâlâ eski
+  // sürümü gösteriyor; böyle yayınlamak diğer admin'in değişikliğini sessizce ezer.
+  const supersededBy = doc && doc.version !== loadedVersion ? doc : null;
+
+  function handlePublishClick() {
     if (!content.trim()) {
       toast.error("İçerik boş olamaz.");
       return;
     }
+    if (!reconsent) return;
+    if (reconsent === "material") {
+      setConfirmOpen(true);
+      return;
+    }
+    void doPublish();
+  }
+
+  async function doPublish() {
+    setConfirmOpen(false);
     try {
-      const saved = await upsert.mutateAsync({ type, content });
-      setUpdatedAt(saved.updatedAt);
-      toast.success("Kaydedildi.");
-    } catch {
-      toast.error("Kaydedilemedi. Backend loglarını kontrol edin.");
+      const saved = await publish.mutateAsync({
+        type,
+        content,
+        requiresReconsent: reconsent === "material",
+      });
+      setLoadedVersion(saved.version);
+      setReconsent(null);
+      setStaleDraft(null);
+      toast.success("Yeni sürüm yayınlandı.");
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      const failed = () =>
+        toast.error(
+          backendErrorMessage(err) ?? "Yayınlanamadı. Backend loglarını kontrol edin."
+        );
+
+      // Backend yarış durumunu da doğrulama hatasını da `400` ile bildiriyor. Ayıran
+      // şey sunucudaki sürüm: gerçek yarışta editörün açtığı sürümün üstüne bir sürüm
+      // yayınlanmıştır. Eşitse (ya da metin hiç yok) yarış değil, gerçek bir hatadır.
+      if (status === 400) {
+        const mine = content;
+        try {
+          const fresh = await refetchLegal(type);
+          if (fresh && fresh.version !== loadedVersion) {
+            setStaleDraft(mine);
+            setContent(fresh.content);
+            setLoadedVersion(fresh.version);
+            toast.error(
+              "Bu metin siz yazarken güncellendi, en son sürüm yüklendi — değişikliğinizi tekrar uygulayın."
+            );
+          } else {
+            failed();
+          }
+        } catch {
+          failed();
+        }
+        return;
+      }
+      failed();
     }
   }
 
   return (
     <div className="space-y-4">
+      <p className="text-sm text-gray-500">
+        {doc
+          ? `Sürüm ${doc.version} · ${formatTrDate(doc.updatedAt, "d MMMM yyyy")}'da güncellendi`
+          : "Henüz yayınlanmadı — yayınlamak sürüm 1'i oluşturur."}
+      </p>
+      <VersionHistory type={type} currentVersion={doc?.version ?? null} />
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
@@ -79,16 +145,183 @@ function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocumen
         className="w-full border rounded-lg p-4 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         placeholder="# Başlık&#10;&#10;Markdown içeriği buraya..."
       />
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-gray-400">
-          {updatedAt
-            ? `Son güncelleme: ${new Date(updatedAt).toLocaleString("tr-TR")}`
-            : "Henüz kaydedilmemiş."}
-        </span>
-        <Button onClick={handleSave} disabled={upsert.isPending}>
-          {upsert.isPending ? "Kaydediliyor..." : "Kaydet"}
+      {supersededBy && (
+        <div className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm">
+          <p className="font-medium">
+            Bu metnin {supersededBy.version}. sürümü siz bu ekranı açtıktan sonra yayınlandı
+          </p>
+          <p className="text-gray-600">
+            Yukarıdaki alanda hâlâ sizin açtığınız sürüm duruyor. Böyle yayınlarsanız o
+            değişikliğin üstüne yazarsınız.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setStaleDraft(content);
+                setContent(supersededBy.content);
+                setLoadedVersion(supersededBy.version);
+              }}
+            >
+              Sunucudaki metni yükle
+            </Button>
+            <Button variant="ghost" onClick={() => setLoadedVersion(supersededBy.version)}>
+              Yoksay
+            </Button>
+          </div>
+        </div>
+      )}
+      {staleDraft !== null && (
+        <div className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm">
+          <p className="font-medium">Yazdığınız metin korundu</p>
+          <p className="text-gray-600">
+            Yukarıdaki alanda şimdi sunucudaki en son sürüm duruyor. Kendi metninizi geri
+            yükleyip değişikliğinizi tekrar uygulayabilirsiniz.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setContent(staleDraft);
+                setStaleDraft(null);
+              }}
+            >
+              Geri yükle
+            </Button>
+            <Button variant="ghost" onClick={() => setStaleDraft(null)}>
+              Yoksay
+            </Button>
+          </div>
+        </div>
+      )}
+      <fieldset className="space-y-3 rounded-lg border p-4">
+        <legend className="px-1 text-sm font-medium">Değişikliğin niteliği</legend>
+        <label className="flex cursor-pointer items-start gap-2 text-sm">
+          <input
+            type="radio"
+            name={`reconsent-${type}`}
+            className="mt-1"
+            checked={reconsent === "minor"}
+            onChange={() => setReconsent("minor")}
+          />
+          <span>
+            <span className="font-medium">Esaslı değişiklik değil</span>
+            <span className="block text-gray-500">
+              Yazım/biçim düzeltmesi, kapsam aynı. Kullanıcılardan yeniden onay istenmez.
+            </span>
+          </span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-2 text-sm">
+          <input
+            type="radio"
+            name={`reconsent-${type}`}
+            className="mt-1"
+            checked={reconsent === "material"}
+            onChange={() => setReconsent("material")}
+          />
+          <span>
+            <span className="font-medium">Esaslı değişiklik</span>
+            <span className="block text-gray-500">
+              Kapsam genişliyor: yeni alıcı, yeni amaç, yeni ülke. Tüm kullanıcılara
+              yeniden onay sorulur.
+            </span>
+          </span>
+        </label>
+      </fieldset>
+      <div className="flex items-center justify-end">
+        <Button onClick={handlePublishClick} disabled={!reconsent || publish.isPending}>
+          {publish.isPending ? "Yayınlanıyor..." : "Yeni sürüm yayınla"}
         </Button>
       </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Esaslı değişiklik olarak yayınlanacak"
+        description="Bu sürüm esaslı değişiklik olarak yayınlanacak. Tüm kullanıcılar uygulamayı açtığında metni yeniden onaylamak zorunda kalacak. Devam edilsin mi?"
+        onConfirm={() => void doPublish()}
+        onCancel={() => setConfirmOpen(false)}
+        confirmLabel="Yayınla"
+      />
     </div>
+  );
+}
+
+function VersionHistory({
+  type,
+  currentVersion,
+}: {
+  type: LegalDocumentType;
+  currentVersion: number | null;
+}) {
+  const [selected, setSelected] = useState<LegalVersionTarget | null>(null);
+  const [open, setOpen] = useState(false);
+
+  // Sürümler append-only ve boşluksuz (backend her yayında max+1 yazıyor, silme yok) —
+  // bu yüzden 1..currentVersion-1 aralığını listelemek bir "tüm sürümleri getir" ucuna
+  // gerek kalmadan güvenli.
+  if (!currentVersion || currentVersion <= 1) {
+    return null;
+  }
+
+  const pastVersions = Array.from(
+    { length: currentVersion - 1 },
+    (_, i) => currentVersion - 1 - i
+  );
+
+  return (
+    <details
+      className="group rounded-lg border"
+      open={open}
+      onToggle={(e) => setOpen(e.currentTarget.open)}
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium">
+        <span>Geçmiş sürümler ({pastVersions.length})</span>
+        <span className="text-gray-400 transition-transform group-open:rotate-180">▾</span>
+      </summary>
+      <ul className="divide-y border-t px-4">
+        {pastVersions.map((v) => (
+          <VersionHistoryRow
+            key={v}
+            type={type}
+            version={v}
+            enabled={open}
+            onView={() => setSelected({ type, version: v })}
+          />
+        ))}
+      </ul>
+      <LegalVersionDialog target={selected} onClose={() => setSelected(null)} />
+    </details>
+  );
+}
+
+function VersionHistoryRow({
+  type,
+  version,
+  enabled,
+  onView,
+}: {
+  type: LegalDocumentType;
+  version: number;
+  enabled: boolean;
+  onView: () => void;
+}) {
+  const { data } = useLegalDocumentVersion(type, version, enabled);
+
+  return (
+    <li className="flex items-center justify-between gap-2 py-2 text-sm">
+      <span className="flex items-center gap-2">
+        <span>Sürüm {version}</span>
+        {data && (
+          <span className="text-gray-400">· {formatTrDate(data.updatedAt, "d MMMM yyyy")}</span>
+        )}
+        {data?.requiresReconsent && (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+            Esaslı değişiklik
+          </span>
+        )}
+      </span>
+      <button onClick={onView} className="text-blue-600 hover:underline">
+        Görüntüle
+      </button>
+    </li>
   );
 }

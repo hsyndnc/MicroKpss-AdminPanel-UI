@@ -5,10 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useUserDetail, useUpdateUserRole } from "@/lib/hooks/useUsers";
+import { useUserDetail, useUpdateUserRole, useUserConsents } from "@/lib/hooks/useUsers";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
+import { LegalVersionDialog, type LegalVersionTarget } from "@/components/shared/LegalVersionDialog";
+import { LEGAL_DOC_LABELS } from "@/lib/legalLabels";
+import { formatTrDate } from "@/lib/format";
 import type { AdminUser, UserRole } from "@/lib/types";
 
 const roleLabel: Record<string, string> = { Standard: "Standart", Premium: "Premium", Admin: "Admin" };
@@ -102,7 +105,45 @@ function UserDetailBody({ user }: { user: AdminUser }) {
           </Button>
         </div>
       </div>
+
+      <ConsentHistory userId={user.id} />
     </>
+  );
+}
+
+function ConsentHistory({ userId }: { userId: string }) {
+  const { data, isLoading, isError } = useUserConsents(userId);
+  const [selected, setSelected] = useState<LegalVersionTarget | null>(null);
+
+  return (
+    <div className="mt-6 border-t pt-4 px-1 space-y-2">
+      <p className="text-sm font-medium">Onay Geçmişi</p>
+      {isLoading ? (
+        <Skeleton className="h-5" />
+      ) : isError ? (
+        <p className="text-sm text-gray-400">Onay geçmişi yüklenemedi.</p>
+      ) : !data || data.length === 0 ? (
+        <p className="text-sm text-gray-400">Bu kullanıcının onay kaydı yok.</p>
+      ) : (
+        <ul className="divide-y">
+          {data.map((c) => (
+            <li
+              key={`${c.type}-${c.version}`}
+              className="flex items-center justify-between gap-2 py-2 text-sm"
+            >
+              <span>{LEGAL_DOC_LABELS[c.type] ?? c.type}</span>
+              <button
+                onClick={() => setSelected({ type: c.type, version: c.version })}
+                className="text-right text-blue-600 hover:underline"
+              >
+                Sürüm {c.version} · {formatTrDate(c.givenAt, "d MMM yyyy HH:mm")}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <LegalVersionDialog target={selected} onClose={() => setSelected(null)} />
+    </div>
   );
 }
 
