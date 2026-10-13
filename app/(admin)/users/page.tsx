@@ -135,24 +135,28 @@ function UsersContent() {
         <div className="rounded-md border bg-white">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Kullanıcı Adı</TableHead>
-                <TableHead>E-posta</TableHead>
+              <TableRow className="bg-white">
+                <TableHead className="sticky left-0 z-10 bg-inherit">Kullanıcı Adı</TableHead>
+                <TableHead className="hidden sm:table-cell">E-posta</TableHead>
                 <TableHead>Rol</TableHead>
-                <TableHead>KPSS Türü</TableHead>
-                <TableHead>Giriş Yöntemi</TableHead>
-                <TableHead>Kayıt Tarihi</TableHead>
+                <TableHead className="hidden md:table-cell">KPSS Türü</TableHead>
+                <TableHead className="hidden md:table-cell">Giriş Yöntemi</TableHead>
+                <TableHead className="hidden lg:table-cell">Kayıt Tarihi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {(data?.items ?? []).map((u) => (
-                <TableRow key={u.id} className="cursor-pointer hover:bg-gray-50" onClick={() => setSelectedUser(u)}>
-                  <TableCell className="font-medium">{u.username || "—"}</TableCell>
-                  <TableCell>{u.email}</TableCell>
+                <TableRow key={u.id} className="bg-white hover:bg-gray-50">
+                  <TableCell className="sticky left-0 z-10 bg-inherit font-medium">
+                    <button type="button" className="text-left hover:underline" onClick={() => setSelectedUser(u)}>
+                      {u.username || "—"}
+                    </button>
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">{u.email}</TableCell>
                   <TableCell><Badge className={roleColor[u.role]}>{roleLabel[u.role]}</Badge></TableCell>
-                  <TableCell className="text-gray-600">{u.kpssType ? kpssLabel[u.kpssType] ?? u.kpssType : "—"}</TableCell>
-                  <TableCell><AuthProviderBadge provider={u.authProvider} /></TableCell>
-                  <TableCell className="text-sm text-gray-600">
+                  <TableCell className="hidden text-gray-600 md:table-cell">{u.kpssType ? kpssLabel[u.kpssType] ?? u.kpssType : "—"}</TableCell>
+                  <TableCell className="hidden md:table-cell"><AuthProviderBadge provider={u.authProvider} /></TableCell>
+                  <TableCell className="hidden text-sm text-gray-600 lg:table-cell">
                     {format(new Date(u.createdAt), "d MMM yyyy", { locale: tr })}
                   </TableCell>
                 </TableRow>
