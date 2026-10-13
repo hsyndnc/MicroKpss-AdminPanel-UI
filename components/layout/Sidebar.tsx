@@ -1,70 +1,13 @@
 "use client";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, FileText, FolderOpen, Users, Calendar, Upload, Scale, LogOut, Library, Flag } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useAuthStore } from "@/lib/store/authStore";
-import { logout } from "@/lib/api/auth";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/questions", label: "Sorular", icon: FileText },
-  { href: "/reports", label: "Raporlar", icon: Flag },
-  { href: "/categories", label: "Kategoriler", icon: FolderOpen },
-  { href: "/users", label: "Kullanıcılar", icon: Users },
-  { href: "/exam-dates", label: "Sınav Tarihleri", icon: Calendar },
-  { href: "/content", label: "İçerik Üretimi", icon: Upload },
-  { href: "/sources", label: "Kaynaklar", icon: Library },
-  { href: "/legal", label: "Yasal Metinler", icon: Scale },
-];
+import { SidebarNav } from "./SidebarNav";
 
 export function Sidebar({ pendingCount = 0, reportCount = 0 }: { pendingCount?: number; reportCount?: number }) {
-  const badgeCount: Record<string, number> = { "/questions": pendingCount, "/reports": reportCount };
-  const pathname = usePathname();
-  const router = useRouter();
-  const clearAuth = useAuthStore((s) => s.clearAuth);
-
-  async function handleLogout() {
-    await logout();
-    clearAuth();
-    router.push("/login");
-  }
-
   return (
-    <aside className="w-64 bg-white border-r h-screen flex flex-col shrink-0">
+    <aside className="hidden w-64 shrink-0 flex-col border-r bg-white lg:flex lg:sticky lg:top-0 lg:h-dvh">
       <div className="p-6 border-b">
         <h1 className="font-bold text-lg">KPSS Admin</h1>
       </div>
-      <nav className="flex-1 p-4 space-y-1">
-        {navItems.map(({ href, label, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={cn(
-              "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-              pathname.startsWith(href)
-                ? "bg-blue-50 text-blue-700"
-                : "text-gray-600 hover:bg-gray-100"
-            )}
-          >
-            <Icon className="h-4 w-4" />
-            {label}
-            {(badgeCount[href] ?? 0) > 0 && (
-              <Badge variant="destructive" className="ml-auto text-xs px-1.5">
-                {badgeCount[href]}
-              </Badge>
-            )}
-          </Link>
-        ))}
-      </nav>
-      <div className="p-4 border-t">
-        <Button variant="ghost" className="w-full justify-start gap-3 text-gray-600" onClick={handleLogout}>
-          <LogOut className="h-4 w-4" />
-          Çıkış Yap
-        </Button>
-      </div>
+      <SidebarNav pendingCount={pendingCount} reportCount={reportCount} />
     </aside>
   );
 }
