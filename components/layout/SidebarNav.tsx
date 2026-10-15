@@ -24,10 +24,12 @@ export function SidebarNav({
   pendingCount = 0,
   reportCount = 0,
   onNavigate,
+  collapsed = false,
 }: {
   pendingCount?: number;
   reportCount?: number;
   onNavigate?: () => void;
+  collapsed?: boolean;
 }) {
   const badgeCount: Record<string, number> = { "/questions": pendingCount, "/reports": reportCount };
   const pathname = usePathname();
@@ -49,27 +51,37 @@ export function SidebarNav({
             key={href}
             href={href}
             onClick={onNavigate}
+            title={collapsed ? label : undefined}
             className={cn(
-              "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+              "relative flex items-center gap-3 rounded-md text-sm font-medium transition-colors",
+              collapsed ? "justify-center px-2 py-2" : "px-3 py-2",
               pathname.startsWith(href)
                 ? "bg-blue-50 text-blue-700"
                 : "text-gray-600 hover:bg-gray-100"
             )}
           >
-            <Icon className="h-4 w-4" />
-            {label}
-            {(badgeCount[href] ?? 0) > 0 && (
+            <Icon className="h-4 w-4 shrink-0" />
+            {!collapsed && label}
+            {!collapsed && (badgeCount[href] ?? 0) > 0 && (
               <Badge variant="destructive" className="ml-auto text-xs px-1.5">
                 {badgeCount[href]}
               </Badge>
+            )}
+            {collapsed && (badgeCount[href] ?? 0) > 0 && (
+              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
             )}
           </Link>
         ))}
       </nav>
       <div className="p-4 border-t">
-        <Button variant="ghost" className="w-full justify-start gap-3 text-gray-600" onClick={handleLogout}>
+        <Button
+          variant="ghost"
+          className={cn("text-gray-600", collapsed ? "w-full justify-center p-0" : "w-full justify-start gap-3")}
+          onClick={handleLogout}
+          title={collapsed ? "Çıkış Yap" : undefined}
+        >
           <LogOut className="h-4 w-4" />
-          Çıkış Yap
+          {!collapsed && "Çıkış Yap"}
         </Button>
       </div>
     </>
