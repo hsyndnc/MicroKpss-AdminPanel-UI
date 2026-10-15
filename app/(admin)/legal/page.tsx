@@ -145,6 +145,7 @@ function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocumen
         className="w-full border rounded-lg p-4 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         placeholder="# Başlık&#10;&#10;Markdown içeriği buraya..."
       />
+      <ReferenceHint type={type} />
       {supersededBy && (
         <div className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm">
           <p className="font-medium">
@@ -242,6 +243,39 @@ function LegalEditor({ type, doc }: { type: LegalDocumentType; doc: LegalDocumen
         confirmLabel="Yayınla"
       />
     </div>
+  );
+}
+
+// Mobil uygulama atıf bağlantısının hedefini belge tipiyle çözüyor; admin'in bu
+// tipleri akılda tutması gerekmesin diye hazır satır olarak listelenir.
+function ReferenceHint({ type }: { type: LegalDocumentType }) {
+  const others = DOC_TYPES.filter((d) => d.type !== type);
+
+  return (
+    <details className="rounded-lg border bg-gray-50 text-sm">
+      <summary className="cursor-pointer px-4 py-2 font-medium">
+        Başka bir metne atıf nasıl yazılır?
+      </summary>
+      <div className="space-y-2 border-t px-4 py-3">
+        <p className="text-gray-600">
+          Aşağıdaki satırlardan birini metne yapıştırın. Mobil uygulamada tıklanınca o
+          metin bir popup içinde açılır.
+        </p>
+        <ul className="space-y-1">
+          {others.map(({ type: target, label }) => (
+            <li key={target}>
+              <code className="block rounded bg-white px-2 py-1 font-mono text-xs">
+                [{label}]({target})
+              </code>
+            </li>
+          ))}
+        </ul>
+        <p className="text-gray-500">
+          Köşeli parantezdeki başlığı cümleye uyacak şekilde değiştirebilirsiniz; parantez
+          içindeki hedef aynı kalmalı.
+        </p>
+      </div>
+    </details>
   );
 }
 
