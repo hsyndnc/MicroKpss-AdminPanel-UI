@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
-import { useCategories, useCreateCategory, useUpdateCategory, useDeleteCategory } from "@/lib/hooks/useCategories";
+import { useCategories, useCreateCategory, useUpdateCategory, useDeleteCategory, useSetCategoryPublishState } from "@/lib/hooks/useCategories";
 import { categorySchema, type CategoryInput } from "@/lib/validations/categorySchema";
+import { effectiveState } from "@/lib/categoryTree";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -12,19 +13,34 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import type { AdminCategory } from "@/lib/types";
+import type { AdminCategory, CategoryPublishState } from "@/lib/types";
 import { Pencil, Trash2 } from "lucide-react";
+
+const STATE_LABEL: Record<CategoryPublishState, string> = { Active: "Aktif", ComingSoon: "Yakında", Hidden: "Gizli" };
+
+function needsConfirm(current: CategoryPublishState, next: CategoryPublishState): boolean {
+  return current === "Active" && next !== "Active";
+}
+
+function downgradeDescription(cat: AdminCategory, next: CategoryPublishState): string {
+  const noun = cat.parentCategoryId ? "ders" : "kategori";
+  const verb = next === "Hidden" ? "tamamen kaybolur" : "tıklanamaz hale gelir";
+  return `Bu ${noun} şu an canlıda kullanıcılara görünüyor. ${STATE_LABEL[next]} yaparsan hemen ${verb}. Devam edilsin mi?`;
+}
 
 export default function CategoriesPage() {
   const { data: categories = [], isLoading } = useCategories();
   const createMutation = useCreateCategory();
   const updateMutation = useUpdateCategory();
   const deleteMutation = useDeleteCategory();
+  const setStateMutation = useSetCategoryPublishState();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<AdminCategory | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminCategory | null>(null);
+  const [pendingChange, setPendingChange] = useState<{ cat: AdminCategory; nextState: CategoryPublishState } | null>(null);
 
   const form = useForm<CategoryInput>({
     resolver: zodResolver(categorySchema),
@@ -66,6 +82,23 @@ export default function CategoriesPage() {
     setDeleteTarget(null);
   }
 
+  function handleStateChange(cat: AdminCategory, nextState: CategoryPublishState) {
+    if (needsConfirm(cat.publishState, nextState)) {
+      setPendingChange({ cat, nextState });
+      return;
+    }
+    applyStateChange(cat.id, nextState);
+  }
+
+  async function applyStateChange(id: string, nextState: CategoryPublishState) {
+    try {
+      await setStateMutation.mutateAsync({ id, state: nextState });
+      toast.success("Durum güncellendi");
+    } catch {
+      toast.error("Durum güncellenemedi");
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -83,6 +116,7 @@ export default function CategoriesPage() {
                 <TableHead className="sticky left-0 z-10 bg-inherit">İsim</TableHead>
                 <TableHead className="hidden md:table-cell">Üst Kategori</TableHead>
                 <TableHead className="hidden sm:table-cell">Aktif Soru</TableHead>
+                <TableHead>Durum</TableHead>
                 <TableHead className="text-right">Aksiyonlar</TableHead>
               </TableRow>
             </TableHeader>
@@ -92,6 +126,33 @@ export default function CategoriesPage() {
                   <TableCell className="sticky left-0 z-10 bg-inherit font-medium">{cat.name}</TableCell>
                   <TableCell className="hidden text-gray-600 md:table-cell">{cat.parentCategoryName ?? "—"}</TableCell>
                   <TableCell className="hidden sm:table-cell">{cat.activeQuestionCount}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Select
+                        items={(Object.keys(STATE_LABEL) as CategoryPublishState[]).map((s) => ({ value: s, label: STATE_LABEL[s] }))}
+                        value={cat.publishState ?? ""}
+                        disabled={cat.publishState == null}
+                        onValueChange={(v) => v && handleStateChange(cat, v as CategoryPublishState)}
+                      >
+                        <SelectTrigger size="sm">
+                          <SelectValue placeholder="—" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(Object.keys(STATE_LABEL) as CategoryPublishState[]).map((s) => (
+                            <SelectItem key={s} value={s}>{STATE_LABEL[s]}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {cat.publishState != null && effectiveState(cat, categories) !== cat.publishState && (
+                        <Badge
+                          className="bg-amber-100 text-amber-800 hover:bg-amber-100"
+                          title={`Üst kategori ${effectiveState(cat, categories) === "Hidden" ? "gizli" : "yakında"} olduğu için bu ders mobilde ${effectiveState(cat, categories) === "Hidden" ? "görünmüyor" : "tıklanamıyor"}.`}
+                        >
+                          {effectiveState(cat, categories) === "Hidden" ? "Ebeveyn gizli" : "Ebeveyn yakında"}
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right space-x-1">
                     <Button size="sm" variant="outline" className="h-11 w-11 p-0 md:h-7 md:w-auto md:px-2.5" onClick={() => openEdit(cat)}>
                       <Pencil className="h-4 w-4" /><span className="sr-only md:not-sr-only md:ml-1">Düzenle</span>
@@ -104,7 +165,7 @@ export default function CategoriesPage() {
               ))}
               {categories.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-gray-400">Kategori bulunamadı</TableCell>
+                  <TableCell colSpan={5} className="text-center py-8 text-gray-400">Kategori bulunamadı</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -159,6 +220,18 @@ export default function CategoriesPage() {
         onCancel={() => setDeleteTarget(null)}
         confirmLabel="Sil"
         confirmVariant="destructive"
+      />
+
+      <ConfirmDialog
+        open={!!pendingChange}
+        title="Durumu Değiştir"
+        description={pendingChange ? downgradeDescription(pendingChange.cat, pendingChange.nextState) : ""}
+        onConfirm={() => {
+          if (pendingChange) applyStateChange(pendingChange.cat.id, pendingChange.nextState);
+          setPendingChange(null);
+        }}
+        onCancel={() => setPendingChange(null)}
+        confirmLabel="Devam Et"
       />
     </div>
   );
