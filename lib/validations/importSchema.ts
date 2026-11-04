@@ -11,6 +11,8 @@ export const importQuestionSchema = z.object({
   year: z.number().optional(),
   questionType: z.enum(["MultipleChoice", "TrueFalse"]).default("MultipleChoice"),
   sourceText: z.string().optional(), // pipeline'ın ürettiği kaynak metin; inceleme ekranında gösterilir
+  verificationStatus: z.string().optional(),   // YENİ
+  verificationNote: z.string().optional(),      // YENİ
 });
 
 export type ImportQuestion = z.infer<typeof importQuestionSchema>;
@@ -154,6 +156,8 @@ export function parseImportFile(content: string, categoryMap: Map<string, string
       year: pickYear(row.year ?? row.yil),
       questionType: resolveType(row.questionType),
       sourceText: pickSourceText(row.kaynak_metin ?? row.sourceText),
+      verificationStatus: row.verificationStatus != null ? String(row.verificationStatus) : undefined,
+      verificationNote: row.verificationNote != null ? String(row.verificationNote) : undefined,
     };
     pushValidated(candidate, categoryId, rawCat, i + 1, valid, errors);
   });
