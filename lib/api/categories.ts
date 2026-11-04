@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import type { AdminCategory } from "@/lib/types";
+import type { AdminCategory, CategoryPublishState } from "@/lib/types";
 
 export async function getAdminCategories(): Promise<AdminCategory[]> {
   const { data } = await apiClient.get<AdminCategory[]>("/admin/categories");
@@ -18,4 +18,15 @@ export async function updateCategory(id: string, body: { name: string; parentCat
 
 export async function deleteCategory(id: string): Promise<void> {
   await apiClient.delete(`/admin/categories/${id}`);
+}
+
+export async function setCategoryPublishState(
+  id: string,
+  state: CategoryPublishState
+): Promise<AdminCategory> {
+  const { data } = await apiClient.post<AdminCategory>(
+    `/admin/categories/${id}/state`,
+    { state }
+  );
+  return data;
 }

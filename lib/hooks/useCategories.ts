@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getAdminCategories, createCategory, updateCategory, deleteCategory } from "@/lib/api/categories";
+import { getAdminCategories, createCategory, updateCategory, deleteCategory, setCategoryPublishState } from "@/lib/api/categories";
+import type { CategoryPublishState } from "@/lib/types";
 
 export function useCategories() {
   return useQuery({ queryKey: ["admin-categories"], queryFn: getAdminCategories });
@@ -26,6 +27,15 @@ export function useDeleteCategory() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: deleteCategory,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-categories"] }),
+  });
+}
+
+export function useSetCategoryPublishState() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, state }: { id: string; state: CategoryPublishState }) =>
+      setCategoryPublishState(id, state),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-categories"] }),
   });
 }

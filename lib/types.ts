@@ -30,12 +30,15 @@ export interface AdminQuestion {
   source?: "Service" | "Import"; // kaynak: "Service" = pipeline üretti, "Import" = panelden import
 }
 
+export type CategoryPublishState = "Hidden" | "ComingSoon" | "Active";
+
 export interface AdminCategory {
   id: string;
   name: string;
   parentCategoryId?: string;
   parentCategoryName?: string;
   activeQuestionCount: number;
+  publishState: CategoryPublishState;
 }
 
 export interface AdminUser {
