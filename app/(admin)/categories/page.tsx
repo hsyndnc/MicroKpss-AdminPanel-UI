@@ -83,6 +83,7 @@ export default function CategoriesPage() {
   }
 
   function handleStateChange(cat: AdminCategory, nextState: CategoryPublishState) {
+    if (nextState === cat.publishState) return;
     if (needsConfirm(cat.publishState, nextState)) {
       setPendingChange({ cat, nextState });
       return;
