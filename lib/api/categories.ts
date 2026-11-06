@@ -12,7 +12,7 @@ export async function createCategory(body: { name: string; parentCategoryId?: st
 }
 
 export async function updateCategory(id: string, body: { name: string; parentCategoryId?: string }): Promise<AdminCategory> {
-  const { data } = await apiClient.put<AdminCategory>(`/admin/categories/${id}`, body);
+  const { data } = await apiClient.put<AdminCategory>(`/admin/categories/${id}`, { id, ...body });
   return data;
 }
 
